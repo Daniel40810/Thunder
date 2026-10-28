@@ -30,7 +30,7 @@ import java.util.Arrays;
  * Thunder – ein Sommergewitter über der Ostsee, seit Phase 18 in 3D auf {@code Renderer.jar} (Sylt-Werkbuch F30 A).
  * <p>
  * Start: {@code java -jar Thunder.jar} (liest Oracle, fällt bei Bedarf auf eingebaute Daten zurück),
- * {@code --offline} ohne Datenbank, {@code --nacht} mit Nachtstimmung. Die Bedienleiste bleibt: Stufe, Abend und Nacht,
+ * {@code --offline} ohne Datenbank, {@code -Dthunder.gljpanel=true} zeichnet über ein GLJPanel (Rückfall), {@code --nacht} mit Nachtstimmung. Die Bedienleiste bleibt: Stufe, Abend und Nacht,
  * Regen, Ton, Sanfte Blitze, Theme. Tasten 1 bis 5: die Ansichten, Pos1 der Hauptblick, H das HUD, F12 ein Foto.
  * <p>
  * Stand Phase 18a: die Szene (Strand, Düne, Meer mit Brandung, Himmel, Wolken, Leuchtturm, Seebrücke, Strandkörbe),
@@ -66,6 +66,7 @@ public final class ThunderApp implements ControlBar.Actions {
 
     private void start(boolean offline) {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        if (!view.lightweight) deckend();
         frame.setLogoType(FIconType.BEACH);
         frame.getComponentPane().add(view, BorderLayout.CENTER);
         frame.getComponentPane().add(bar, BorderLayout.SOUTH);
@@ -83,6 +84,30 @@ public final class ThunderApp implements ControlBar.Actions {
         frame.setVisible(true);
         view.start();
         load(offline);
+    }
+
+    /**
+     * Das FFrame ist durchscheinend (runde Ecken über einen transparenten Hintergrund). Ein schweres {@code GLCanvas}
+     * bleibt in so einem Fenster unter Windows unsichtbar, ohne Fehlermeldung. Darum wie in Sylt: das Fenster deckend
+     * machen und die Ecken über {@code setShape} runden (maximiert eckig).
+     */
+    private void deckend() {
+        frame.setBackground(new java.awt.Color(FTheme.getInstance().getBackground().getRGB() & 0xFFFFFF));   // ganz deckend
+        java.awt.event.ComponentAdapter form = new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) { form(); }
+            @Override public void componentShown(java.awt.event.ComponentEvent e) { form(); }
+        };
+        frame.addComponentListener(form);
+        frame.addWindowStateListener(e -> form());
+    }
+
+    private void form() {
+        try {
+            boolean max = (frame.getExtendedState() & java.awt.Frame.MAXIMIZED_BOTH) != 0;
+            frame.setShape(max ? null : new java.awt.geom.RoundRectangle2D.Double(0, 0, frame.getWidth(), frame.getHeight(), 20, 20));
+        } catch (UnsupportedOperationException | java.awt.IllegalComponentStateException e) {
+            // Form nicht möglich: dann eben eckig
+        }
     }
 
     private void applyFrameTheme() {
