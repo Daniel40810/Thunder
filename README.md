@@ -9,6 +9,31 @@ eingebauten Daten weiter.
 
 ![Abendgewitter, naher Einschlag](docs/1_abend_einschlag_nah.png)
 
+## Umbau in 3D (Sylt-Werkbuch Phase 18, F30 A)
+
+Thunder wird eine 3D-Szene auf `Renderer.jar` (wie Sylt, Brocken und Lighthouse). Strand, Stufen, Abend und Nacht und die
+Bedienung bleiben; das Schema bleibt DEMO.
+
+**Stand 18a, das Gerüst:**
+
+- **Gelände:** der Ostseestrand gerechnet (`scene.Gelaende`). Düne mit dem Standpunkt des Hauptblicks, Strand bis zur
+  Wasserlinie 41 m voraus, Vorstrand mit Riff, eine Landzunge mit dem Leuchtturm links, Hinterland.
+- **See:** `ocean` mit dem Gelände als Grund. Davor die Brecher und der Auflauf aus `surf` mit `Surf.ostsee()`
+  (`scene.Brandung`).
+- **Himmel und Wolken:** `sky` über 54,0° N am 15. Juli und `cloud` (Cumulonimbus).
+- **Bauten:** Leuchtturm mit roten Bändern, Seebrücke mit Häuschen und Laterne, vier Strandkörbe mit Streifen wie in
+  `TH_SCENE_OBJECT` (`scene.Bauwerke`).
+- **Stufe und Stimmung:** Die Stufe stellt Wind, See und Wolken. Abend und Nacht stellen die Uhr auf 21:20 bzw.
+  23:30 Uhr, weich über 1,5 s.
+- **Ansichten:** Tasten 1 bis 5 (Hauptblick, Seebrücke, Leuchtturm, Strandkorb, Drohne). Die Maus dreht, das Rad zoomt,
+  H schaltet das HUD, F12 macht ein Foto.
+- **Statusbild:** `ant statusbild` (`tools.Statusbild`) legt die fünf Bilder aus `docs/` über denselben Blick in 3D.
+
+Blitze, Glutkern, Regen und Klang kommen in 18b. Bedienung, Blitzprotokoll und Datenbank kommen in 18c. Bis dahin
+liegen die alten Pakete `render` und `audio` noch im Projekt, die App nutzt sie nicht mehr.
+
+![Stand 18a](docs/status/Status_Phase18a_claude.png)
+
 ## Start
 
 1. **Datenbank** (einmalig, als `DEMO`): in SQL Developer `sql/00_th_install.sql` öffnen und mit **F5** als Skript ausführen,

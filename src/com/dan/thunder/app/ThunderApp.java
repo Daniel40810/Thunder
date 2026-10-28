@@ -4,46 +4,54 @@ import com.dan.fframe.FFrame;
 import com.dan.ficons.FIconType;
 import com.dan.fstyle.FTheme;
 import com.dan.fstyle.FThemePreset;
-import com.dan.thunder.audio.ThunderSynth;
+import com.dan.thunder.camera.Ansichten;
 import com.dan.thunder.data.BuiltinThunderRepository;
 import com.dan.thunder.data.DbConfig;
 import com.dan.thunder.data.OracleThunderRepository;
-import com.dan.thunder.data.StrikeLogger;
+import com.dan.thunder.gl.Renderer;
+import com.dan.thunder.gl.SceneView;
 import com.dan.thunder.model.Mood;
 import com.dan.thunder.model.StormLevel;
 import com.dan.thunder.model.ThunderData;
-import com.dan.thunder.render.StormCanvas;
-import com.dan.thunder.storm.StormListener;
-import com.dan.thunder.storm.Strike;
+import com.dan.thunder.scene.SceneClock;
 
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.SwingWorker;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.event.KeyEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.Arrays;
 
 /**
- * Thunder – ein Sommergewitter über der Ostsee.
+ * Thunder – ein Sommergewitter über der Ostsee, seit Phase 18 in 3D auf {@code Renderer.jar} (Sylt-Werkbuch F30 A).
  * <p>
- * Start: {@code java -jar Thunder.jar} (liest Oracle, fällt bei Bedarf auf eingebaute Daten zurück)
- * oder {@code java -jar Thunder.jar --offline}.
+ * Start: {@code java -jar Thunder.jar} (liest Oracle, fällt bei Bedarf auf eingebaute Daten zurück),
+ * {@code --offline} ohne Datenbank, {@code --nacht} mit Nachtstimmung. Die Bedienleiste bleibt: Stufe, Abend und Nacht,
+ * Regen, Ton, Sanfte Blitze, Theme. Tasten 1 bis 5: die Ansichten, Pos1 der Hauptblick, H das HUD, F12 ein Foto.
+ * <p>
+ * Stand Phase 18a: die Szene (Strand, Düne, Meer mit Brandung, Himmel, Wolken, Leuchtturm, Seebrücke, Strandkörbe),
+ * Stufe und Stimmung wirken auf Wind, See, Wolken und Uhr. Blitze, Glutkern, Regen und Klang folgen in 18b, das
+ * Blitzprotokoll und die Datenbank in 18c.
  */
 public final class ThunderApp implements ControlBar.Actions {
 
     private final FFrame frame = new FFrame("Thunder · Gewitter über der Ostsee");
-    private final StormCanvas canvas = new StormCanvas();
-    private final ThunderSynth synth = new ThunderSynth();
+    private final Renderer renderer;
+    private final SceneView view;
     private final ControlBar bar;
     private final FTheme.ThemeListener themeListener = t -> applyFrameTheme();
     private DbConfig config;
-    private StrikeLogger logger;
     private String sourceText = "";
+    private volatile boolean rain = true, soft;
 
     private ThunderApp(Mood mood) {
-        canvas.setMood(mood);
+        renderer = new Renderer(new SceneClock());
+        renderer.setMood(mood, true);
+        view = new SceneView(renderer);
         bar = new ControlBar(this, mood);
     }
 
@@ -59,23 +67,21 @@ public final class ThunderApp implements ControlBar.Actions {
     private void start(boolean offline) {
         frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         frame.setLogoType(FIconType.BEACH);
-        frame.getComponentPane().add(canvas, BorderLayout.CENTER);
+        frame.getComponentPane().add(view, BorderLayout.CENTER);
         frame.getComponentPane().add(bar, BorderLayout.SOUTH);
         frame.setPreferredFrameSize(new Dimension(1440, 900));
         frame.setMinimumSize(new Dimension(1180, 720));
         applyFrameTheme();
         FTheme.getInstance().addThemeListener(themeListener);
+        for (Ansichten.Ansicht a : Ansichten.ALLE) view.setKeyAction(KeyEvent.VK_0 + a.key(), () -> renderer.placeView(a));
+        renderer.setErrorListener(msg -> SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(frame, msg, "Thunder", JOptionPane.WARNING_MESSAGE)));
         frame.addWindowListener(new WindowAdapter() {
             @Override
-            public void windowClosing(WindowEvent e) {
-                synth.stop();
-                if (logger != null) {
-                    logger.close();
-                }
-            }
+            public void windowClosing(WindowEvent e) { view.stop(); }
         });
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
+        view.start();
         load(offline);
     }
 
@@ -89,7 +95,7 @@ public final class ThunderApp implements ControlBar.Actions {
     private void load(boolean offline) {
         config = DbConfig.load();
         boolean useDb = config.enabled() && !offline;
-        canvas.setLoadingText(useDb ? "Verbinde mit Oracle · " + config.describe() + " …" : "Gewitter zieht auf …");
+        renderer.hudMeldung(useDb ? "Verbinde mit Oracle · " + config.describe() + " …" : "Gewitter zieht auf …");
         new SwingWorker<ThunderData, Void>() {
             private String note = "";
 
@@ -109,94 +115,37 @@ public final class ThunderApp implements ControlBar.Actions {
             protected void done() {
                 try {
                     ThunderData data = get();
-                    canvas.setData(data);
-                    bar.setData(data, canvas.getDirector().getLevel());
-                    boolean fromDb = useDb && note.isEmpty();
-                    if (fromDb && config.logStrikes()) {
-                        logger = new StrikeLogger(config, msg -> SwingUtilities.invokeLater(() -> setStatus(sourceText + " · " + msg)));
-                    }
-                    canvas.getDirector().addListener(new StormListener() {
-                        @Override
-                        public void strikeStarted(Strike s) {
-                            logStrike(s);
-                        }
-
-                        @Override
-                        public void thunderArrived(Strike s) {
-                            synth.thunder(s.distKm());
-                        }
-                    });
-                    sourceText = data.source() + " · " + data.levels().size() + " Stufen"
-                            + (logger != null ? " · Blitzprotokoll → TH_STRIKE" : "");
-                    setStatus(note.isEmpty() ? sourceText : sourceText + " · " + note);
-                    updateAmbience();
+                    StormLevel start = data.levels().stream().filter(l -> l.code().equals("STORM")).findFirst().orElse(data.levels().get(0));
+                    renderer.setLevel(start);
+                    bar.setData(data, start);
+                    sourceText = data.source() + " · " + data.levels().size() + " Stufen";
+                    renderer.hudMeldung(note.isEmpty() ? sourceText : sourceText + " · " + note);
                 } catch (Exception ex) {
-                    setStatus("Fehler beim Laden: " + ex.getMessage());
+                    renderer.hudMeldung("Fehler beim Laden: " + ex.getMessage());
                 }
             }
         }.execute();
     }
 
-    private void logStrike(Strike s) {
-        if (logger == null) {
-            return;
-        }
-        StormLevel lvl = canvas.getDirector().getLevel();
-        double posX = (s.kind() == com.dan.thunder.storm.StrikeKind.IC ? s.cx() : s.gx()) / Math.max(1, canvas.getWidth());
-        logger.log(new StrikeLogger.Entry(System.currentTimeMillis(), lvl.id(), canvas.getMood(), s.kind().dbCode(),
-                s.clicked(), s.distKm(), s.peakKa(), posX, s.seed()));
-    }
-
-    private void setStatus(String text) {
-        canvas.setStatusText(text);
-    }
-
-    private void updateAmbience() {
-        if (canvas.getDirector() == null) {
-            return;
-        }
-        StormLevel l = canvas.getDirector().getLevel();
-        synth.setRain(canvas.isRainVisible() ? Math.min(1, 0.25 + l.rainDrops() / 950.0 * 0.75) : 0);
-        synth.setSurf(0.35 + 0.65 * Math.min(1, l.wind()));
-    }
-
     // ------------------------------------------------------------------ Bedienleiste
 
     @Override
-    public void levelChanged(StormLevel level) {
-        canvas.setLevel(level);
-        updateAmbience();
-    }
+    public void levelChanged(StormLevel level) { renderer.setLevel(level); }
 
     @Override
-    public void moodChanged(Mood mood) {
-        canvas.setMood(mood);
-    }
+    public void moodChanged(Mood mood) { renderer.setMood(mood, false); }
 
     @Override
-    public void rainChanged(boolean on) {
-        canvas.setRainVisible(on);
-        updateAmbience();
-    }
+    public void rainChanged(boolean on) { rain = on; }   // Regen ab Phase 18b
 
     @Override
     public boolean soundChanged(boolean on) {
-        if (!on) {
-            synth.stop();
-            return true;
-        }
-        updateAmbience();
-        if (synth.start()) {
-            return true;
-        }
-        setStatus(sourceText + " · Kein Ton: " + synth.error());
-        return false;
+        if (on) renderer.hudMeldung("Ton kommt mit Phase 18b (soundscape)");
+        return !on;
     }
 
     @Override
-    public void softChanged(boolean on) {
-        canvas.setSoft(on);
-    }
+    public void softChanged(boolean on) { soft = on; }   // ab Phase 18b: dämpft das Licht der Blitze
 
     private static String shortReason(Exception ex) {
         String m = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();

@@ -70,4 +70,35 @@
     nbproject/build-impl.xml file. 
 
     -->
+    <!--
+        Phase 18a (Sylt F30 A): Prüfung von lib/Renderer.jar nach jedem Übersetzen. Die Element-Packages liegen nicht im
+        Projekt: ihre Quelle ist das Projekt Renderer. tools/JarPruefung.java prüft, ob das Jar alles hat, was Thunder
+        braucht; abschalten mit -Dohne.paketpruefung=true.
+    -->
+    <target name="check-packages" description="Prüft lib/Renderer.jar: alle gebrauchten Packages mit README, Java 21, surf, ocean, sky, cloud." unless="ohne.paketpruefung">
+        <property name="platform.java" value="java"/>
+        <exec executable="${platform.java}" dir="${basedir}" failonerror="true">
+            <arg value="-Dstdout.encoding=UTF-8"/>
+            <arg value="-Dstderr.encoding=UTF-8"/>
+            <arg value="tools/JarPruefung.java"/>
+            <arg value="lib/Renderer.jar"/>
+        </exec>
+    </target>
+    <target name="-post-compile" depends="check-packages"/>
+
+    <!-- Phase 18: Statusbild ohne Fenster (die fünf Bilder aus docs/ neben dem 3D-Blick, dazu die Ansichten). -->
+    <target name="statusbild" depends="compile" description="Rechnet docs/status/Status_Phase18_claude.png (tools.Statusbild).">
+        <property name="platform.java" value="java"/>
+        <java classname="com.dan.thunder.tools.Statusbild" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
+            <jvmarg value="-Dstdout.encoding=UTF-8"/>
+            <jvmarg value="-Xmx4g"/>
+            <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+            <arg value="docs/status/Status_Phase18a_claude.png"/>
+            <arg value="2000"/>
+            <arg value="HOCH"/>
+            <arg value="Thunder Phase 18a"/>
+            <arg value="ansichten"/>
+            <classpath><pathelement path="${run.classpath}"/></classpath>
+        </java>
+    </target>
 </project>
