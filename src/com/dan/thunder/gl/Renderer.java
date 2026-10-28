@@ -63,7 +63,7 @@ import java.util.function.Consumer;
  */
 public final class Renderer implements GLEventListener {
     public static final int MIN_MAJOR = 4, MIN_MINOR = 3;
-    public static final String VERSION = "Phase 18b";
+    public static final String VERSION = "Phase 18c";
     public static final String[] PASSES = {"Himmel", "Gelände", "Bauten", "Meer", "Wolken", "Blitz und Regen", "Nachbearbeitung", "HUD"};
     private static final int MARKS = PASSES.length + 1;
     static final double NEAR = 0.2, FAR = 60_000, FOG_DISTANCE = 30_000;
@@ -74,7 +74,9 @@ public final class Renderer implements GLEventListener {
     public final Wetter wetter = new Wetter();
     public final Meer meer = new Meer();
     public final Brandung brandung = new Brandung();
-    public final Bauwerke bauwerke = new Bauwerke();
+    /** Leuchtturm, Seebrücke, Strandkörbe; seit 18c mit den Körben aus TH_SCENE_OBJECT (neu gebaut, wenn die Daten kommen). */
+    public volatile Bauwerke bauwerke = new Bauwerke();
+    private volatile boolean bautenNeu;
     final BrandungGl brandungGl = new BrandungGl();
     final GelaendeGl gelaendeGl = new GelaendeGl();
     final BautenGl bautenGl = new BautenGl();
@@ -211,6 +213,27 @@ public final class Renderer implements GLEventListener {
     /** Farben (TH_PALETTE) und Ort des Glutkerns (TH_SCENE) aus den Daten. */
     public void setDaten(ThunderData d) {
         gewitter.setDaten(d.palette(Mood.ABEND), d.palette(Mood.NACHT), d.scene(), wiring.mood);
+        if (d.scene() == null) return;
+        // seit 18c: Ansichten aus TH_VIEW, Strandkörbe aus TH_SCENE_OBJECT (Ort, Öffnung, Farbe)
+        Ansichten.setzen(d.scene().views());
+        java.util.List<com.dan.thunder.scene.Lage.Korb> k = new java.util.ArrayList<>();
+        java.util.List<String> abweichung = new java.util.ArrayList<>();
+        for (com.dan.thunder.model.SceneObject o : d.scene().objects()) {
+            if (!o.hatLage()) continue;
+            switch (o.type()) {
+                case STRANDKORB -> k.add(new com.dan.thunder.scene.Lage.Korb(o.xM(), o.zM(), o.rotDeg() == null ? 225 : o.rotDeg(),
+                        o.color() == null ? null : String.format("#%06X", o.color().getRGB() & 0xFFFFFF)));
+                case LEUCHTTURM -> { var t = com.dan.thunder.scene.Lage.leuchtturm(); if (Math.hypot(o.xM() - t.xM(), o.zM() - t.zM()) > 1) abweichung.add("Leuchtturm"); }
+                case SEEBRUECKE -> { var t = com.dan.thunder.scene.Lage.seebruecke(); if (Math.hypot(o.xM() - t.xM(), o.zM() - t.zM()) > 1) abweichung.add("Seebrücke"); }
+                default -> { }
+            }
+        }
+        if (!k.isEmpty() && !k.equals(bauwerke.koerbe)) {
+            bauwerke = new Bauwerke(k);
+            bautenNeu = true;
+        }
+        if (!abweichung.isEmpty()) hudMeldung("Hinweis: " + String.join(" und ", abweichung)
+                + " stehen in TH_SCENE_OBJECT anders als im Code; sie hängen am Gelände und bleiben, wo der Code sie hat");
     }
 
     /**
@@ -374,12 +397,27 @@ public final class Renderer implements GLEventListener {
         brandung.schritt(dt, wiring.seaHs(), wiring.seaTp());
         stepGewitter(dt, cloudsShown);
         klang.feed(dt);
+        bebenT += dt;
+        beben *= Math.exp(-dt / 0.25);
+        if (beben < 0.01) beben = 0;
         if (wetter.skyOk) {
             Sky.State st = wetter.sky.step(dt);
             wetter.clouds.step(dt);
             cloudShade = cloudsShown ? Clouds.shadow(wetter.clouds.snapshot(), camera.eye[0], camera.eye[2], Wetter.keyDir(st)) : 1;
             adapt(st, dt);
         }
+    }
+
+    /** Der Blick, beim Beben ein wenig verwackelt (zwei Frequenzen je Achse). */
+    private float[] bebenderBlick() {
+        double b = beben;
+        if (b <= 0 || frozen) return camera.view();
+        double a = Math.toRadians(BEBEN_GRAD) * b, t = bebenT;
+        double dy = a * (Math.sin(t * 61) * 0.6 + Math.sin(t * 37 + 1) * 0.4), dp = a * (Math.sin(t * 53 + 2) * 0.6 + Math.sin(t * 29) * 0.4);
+        double[] f = camera.fwd, e = camera.eye;
+        double[] r = {-f[2], 0, f[0]};
+        double rl = Math.max(1e-6, Math.hypot(r[0], r[2]));
+        return Mat4.lookAt(e[0], e[1] + dp * 0.02, e[2], e[0] + f[0] + r[0] / rl * dy, e[1] + f[1] + dp, e[2] + f[2] + r[2] / rl * dy);
     }
 
     /** Gewitter, Regen und Nässe weiter; wie weit die Belichtung im Blitz nachgibt. */
@@ -418,6 +456,113 @@ public final class Renderer implements GLEventListener {
     public String blitzDiagnose() {
         return String.format(Locale.ROOT, "pre %.3g give %.3g lf %.3g lights %d cloud %d glut %.3g", exposureBase(), flashGive, lfZuletzt,
                 blitzGl.lightCount(), blitzGl.cloudLightCount(), gewitter.glutRgb[1]);
+    }
+
+    // ------------------------------------------------------------------ Bedienung (seit 18c)
+
+    /** Das Bild bebt, wenn der Donner eines nahen Blitzes ankommt (wie im 2D-Thunder): Stärke 0..1, klingt in 0,7 s ab. */
+    private volatile double beben;
+    private double bebenT;
+    public static final double BEBEN_GRAD = 0.35, BEBEN_ABSTAND = 1500;
+
+    /** Vom Klang: ein Donner ist angekommen (Abstand des nächsten Kanalpunkts in m). */
+    void donnerAngekommen(double abstand) {
+        if (abstand < BEBEN_ABSTAND) beben = Math.max(beben, 1 - abstand / BEBEN_ABSTAND);
+    }
+
+    /**
+     * Klick in die Szene (Fensterpunkte x, y in w × h): ein Blitz über die Regie. Trifft der Strahl See oder Strand, schlägt
+     * er dort ein; im Himmel gilt wie im 2D-Thunder: je höher der Klick, desto näher (0,4 bis 9,4 km). Gibt die Peilung
+     * und den Abstand zurück.
+     */
+    public double[] klick(int x, int y, int w, int h) {
+        double t = Math.tan(Math.toRadians(fovy() / 2)), asp = w / (double) Math.max(1, h);
+        double nx = 2.0 * x / Math.max(1, w) - 1, ny = 1 - 2.0 * y / Math.max(1, h);
+        double[] f = camera.fwd.clone();
+        double[] r = {-f[2], 0, f[0]};
+        double rl = Math.hypot(r[0], r[2]);
+        if (rl < 1e-6) r = new double[]{1, 0, 0}; else { r[0] /= rl; r[2] /= rl; }
+        double[] u = {r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]};
+        double[] d = new double[3];
+        for (int k = 0; k < 3; k++) d[k] = f[k] + r[k] * nx * t * asp + u[k] * ny * t;
+        double peil = com.dan.thunder.scene.Lage.kurs(0, 0, d[0], d[2]);
+        double km;
+        double[] e = camera.eye;
+        if (d[1] < -1e-4) {
+            double s = -e[1] / d[1];
+            double px = e[0] + d[0] * s, pz = e[2] + d[2] * s;
+            peil = com.dan.thunder.scene.Lage.kurs(0, 0, px, pz);
+            km = Math.hypot(px, pz) / 1000;
+        } else {
+            double hoch = Math.toDegrees(Math.atan2(d[1], Math.hypot(d[0], d[2])));
+            double q = 1 - Math.min(1, hoch / 25);
+            km = 0.4 + q * q * 9;
+        }
+        gewitter.vonHand(StrikeKind.CG, peil, km);
+        return new double[]{peil, km};
+    }
+
+    /** Tasten: B Erdblitz in Blickrichtung (1,5 bis 4 km), K Blitzkrone, T Einschlag in den Leuchtturm. */
+    public void blitzTaste(char c) {
+        switch (c) {
+            case 'B' -> gewitter.vonHand(StrikeKind.CG, camera.heading() + (Math.random() - 0.5) * 20, 1.5 + Math.random() * 2.5);
+            case 'K' -> gewitter.vonHand(StrikeKind.CROWN, Site.BLICK, 5);
+            case 'T' -> { double[] t = Gewitter.turm(); gewitter.vonHand(StrikeKind.CG, t[0], t[1]); }
+            default -> { }
+        }
+    }
+
+    /** Qualität eine Stufe weiter (Taste G). */
+    public Quality naechsteQualitaet() {
+        Quality[] q = Quality.values();
+        Quality n = q[(quality.ordinal() + 1) % q.length];
+        setQuality(n);
+        hudMeldung("Qualität " + n.summary());
+        return n;
+    }
+
+    private final HudOverlay karte = new HudOverlay();
+
+    /** Die Blitzkarte oben rechts (wie im 2D-Thunder): letzter Blitz, Donner, Blitze je Minute. */
+    BufferedImage paintKarte() {
+        String z = gewitter.zuletzt;
+        Lightning.Thunder next = null;
+        for (Lightning.Thunder th : gewitter.blitz.pendingThunder()) if (next == null || th.time() < next.time()) next = th;
+        Lightning.Thunder last = gewitter.blitz.lastThunder();
+        String donner = next != null ? String.format(Locale.GERMAN, "Donner in %.1f s", Math.max(0, next.time() - gewitter.blitz.time()))
+                : last != null && gewitter.blitz.time() - last.time() < last.duration() ? String.format(Locale.GERMAN, "es donnert · %.0f dB", last.levelDb())
+                : "still";
+        StormLevel l = wiring.level;
+        String[] lines = {"LETZTER BLITZ", z.isEmpty() ? "noch keiner" : z, donner,
+                String.format(Locale.GERMAN, "%d Blitze je Minute · %s%s", gewitter.regie().perMinute(gewitter.time() * 1000), l == null ? "–" : l.name(), gewitter.sanft() ? " · sanft" : "")};
+        Font font = new Font(Font.SANS_SERIF, Font.PLAIN, 13), head = new Font(Font.SANS_SERIF, Font.BOLD, 11);
+        BufferedImage probe = new BufferedImage(1, 1, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D pg = probe.createGraphics();
+        int tw = 0;
+        for (int i = 1; i < lines.length; i++) tw = Math.max(tw, pg.getFontMetrics(font).stringWidth(lines[i]));
+        pg.dispose();
+        int w = Math.max(230, tw + 26), h = 22 + 19 * (lines.length - 1) + 10;
+        BufferedImage im = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = im.createGraphics();
+        g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+        g.setColor(new Color(10, 14, 24, 190));
+        g.fillRoundRect(0, 0, w - 1, h - 1, 12, 12);
+        g.setColor(new Color(120, 150, 255, 225));
+        g.setStroke(new BasicStroke(2f));
+        g.drawLine(10, 1, w - 40, 1);
+        g.setColor(new Color(255, 154, 80, 225));
+        g.drawLine(w - 38, 1, w - 12, 1);
+        g.setFont(head);
+        g.setColor(new Color(160, 180, 230));
+        g.drawString(lines[0], 12, 17);
+        g.setFont(font);
+        for (int i = 1; i < lines.length; i++) {
+            g.setColor(i == 1 ? new Color(236, 238, 244) : i == 2 && next != null ? new Color(255, 190, 120) : new Color(186, 192, 204));
+            g.drawString(lines[i], 12, 18 + 19 * i);
+        }
+        g.dispose();
+        return im;
     }
 
     /**
@@ -461,6 +606,10 @@ public final class Renderer implements GLEventListener {
             }
         }
         defaultFbo = targetFbo;
+        if (bautenNeu) {
+            bautenNeu = false;
+            bautenGl.upload(gl, BautenGl.FEST, bauwerke.netz);
+        }
         readMarks(gl);
         long now = System.nanoTime();
         double rawMs = (now - lastNanos) / 1e6;
@@ -491,7 +640,7 @@ public final class Renderer implements GLEventListener {
         double[] sp = clock.sun();
         double[] sun = frameSky ? st.sunDir : Sun.direction(sp[0], sp[1]);
         float[] proj = Mat4.perspective(fovy(), w / (double) h, NEAR, FAR, reversedZ);
-        float[] vp = Mat4.mul(proj, camera.view());
+        float[] vp = Mat4.mul(proj, bebenderBlick());
         float[] inv = Mat4.invert(vp);
         boolean cloudsNow = frameSky && wetter.cloudsOk && showClouds;
         Clouds.Snapshot cs = wetter.clouds.snapshot();
@@ -710,6 +859,9 @@ public final class Renderer implements GLEventListener {
         if (showHud) {
             hud.refresh(gl, 250, this::paintHud, frozen);
             hud.draw(gl, overlay, emptyVao, 12, Math.max(0, surfH - hud.height - 12), surfW, surfH);
+            // seit 18c: die Blitzkarte oben rechts
+            karte.refresh(gl, 150, this::paintKarte, frozen);
+            karte.draw(gl, overlay, emptyVao, Math.max(0, surfW - karte.width - 12), Math.max(0, surfH - karte.height - 12), surfW, surfH);
         }
         gl.glBindVertexArray(0);
         gl.glUseProgram(0);
@@ -1133,6 +1285,7 @@ public final class Renderer implements GLEventListener {
         GL4 gl = d.getGL().getGL4();
         for (Shader s : all) s.dispose(gl);
         hud.dispose(gl);
+        karte.dispose(gl);
         wetter.dispose(gl);
         meer.dispose(gl);
         brandungGl.dispose(gl);

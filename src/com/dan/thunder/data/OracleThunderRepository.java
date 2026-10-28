@@ -7,6 +7,7 @@ import com.dan.thunder.model.Scene;
 import com.dan.thunder.model.SceneObject;
 import com.dan.thunder.model.StormLevel;
 import com.dan.thunder.model.ThunderData;
+import com.dan.thunder.model.ViewDef;
 
 import java.awt.Color;
 import java.sql.Connection;
@@ -47,13 +48,29 @@ public final class OracleThunderRepository implements ThunderRepository {
             if (levels.isEmpty()) {
                 throw new SQLException("TH_STORM_LEVEL ist leer – bitte sql/00_th_install.sql ausführen");
             }
-            Scene scene = loadScene(con, sceneCode);
+            boolean d3 = hat3d(con);
+            Scene scene = loadScene(con, sceneCode, d3);
             Map<Mood, Palette> palettes = loadPalettes(con);
-            return new ThunderData(levels, scene, palettes, "Oracle " + config.describe());
+            return new ThunderData(levels, scene, palettes, "Oracle " + config.describe() + (d3 ? "" : " (ohne sql/04_th_3d.sql: Lage und Ansichten eingebaut)"));
         }
     }
 
-    private static Scene loadScene(Connection con, String code) throws SQLException {
+    /** Seit Phase 18c: ob {@code sql/04_th_3d.sql} gelaufen ist (TH_SCENE_OBJECT.X_M und TH_VIEW da). */
+    public static boolean hat3d(Connection con) throws SQLException {
+        try (PreparedStatement ps = con.prepareStatement(
+                "SELECT (SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'TH_SCENE_OBJECT' AND COLUMN_NAME IN ('X_M', 'Z_M', 'ROT_DEG')), "
+                + "(SELECT COUNT(*) FROM USER_TABLES WHERE TABLE_NAME = 'TH_VIEW') FROM DUAL");
+             ResultSet rs = ps.executeQuery()) {
+            return rs.next() && rs.getInt(1) == 3 && rs.getInt(2) == 1;
+        }
+    }
+
+    private static Double num(ResultSet rs, int i) throws SQLException {
+        double v = rs.getDouble(i);
+        return rs.wasNull() ? null : v;
+    }
+
+    private static Scene loadScene(Connection con, String code, boolean d3) throws SQLException {
         try (PreparedStatement ps = con.prepareStatement(
                 "SELECT SCENE_ID, CODE, NAME_DE, HORIZON_Y, SHORE_Y, EMBER_X, EMBER_Y FROM TH_SCENE WHERE CODE = ?")) {
             ps.setString(1, code);
@@ -66,18 +83,33 @@ public final class OracleThunderRepository implements ThunderRepository {
                 double hor = rs.getDouble(4), shore = rs.getDouble(5), ex = rs.getDouble(6), ey = rs.getDouble(7);
                 List<SceneObject> objects = new ArrayList<>();
                 try (PreparedStatement po = con.prepareStatement(
-                        "SELECT OBJ_TYPE, POS_X, DEPTH, OBJ_SCALE, COLOR_HEX FROM TH_SCENE_OBJECT "
+                        "SELECT OBJ_TYPE, POS_X, DEPTH, OBJ_SCALE, COLOR_HEX" + (d3 ? ", X_M, Z_M, ROT_DEG" : "") + " FROM TH_SCENE_OBJECT "
                         + "WHERE SCENE_ID = ? ORDER BY SORT_ORDER")) {
                     po.setLong(1, id);
                     try (ResultSet ro = po.executeQuery()) {
                         while (ro.next()) {
                             String hex = ro.getString(5);
                             objects.add(new SceneObject(SceneObject.Type.valueOf(ro.getString(1)), ro.getDouble(2),
-                                    ro.getDouble(3), ro.getDouble(4), hex == null ? null : Palette.hex(hex)));
+                                    ro.getDouble(3), ro.getDouble(4), hex == null ? null : Palette.hex(hex),
+                                    d3 ? num(ro, 6) : null, d3 ? num(ro, 7) : null, d3 ? num(ro, 8) : null));
                         }
                     }
                 }
-                return new Scene(sc, name, hor, shore, ex, ey, List.copyOf(objects));
+                List<ViewDef> views = new ArrayList<>();
+                if (d3) {
+                    try (PreparedStatement pv = con.prepareStatement(
+                            "SELECT KEY_NO, NAME_DE, X_M, Z_M, ABOVE_M, REFERENCE, HEADING_DEG, PITCH_DEG, FOVY_DEG FROM TH_VIEW "
+                            + "WHERE SCENE_ID = ? ORDER BY KEY_NO")) {
+                        pv.setLong(1, id);
+                        try (ResultSet rv = pv.executeQuery()) {
+                            while (rv.next()) {
+                                views.add(new ViewDef(rv.getInt(1), rv.getString(2), rv.getDouble(3), rv.getDouble(4), rv.getDouble(5),
+                                        rv.getString(6), rv.getDouble(7), rv.getDouble(8), rv.getDouble(9)));
+                            }
+                        }
+                    }
+                }
+                return new Scene(sc, name, hor, shore, ex, ey, List.copyOf(objects), List.copyOf(views));
             }
         }
     }

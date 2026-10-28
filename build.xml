@@ -101,4 +101,32 @@
             <classpath><pathelement path="${run.classpath}"/></classpath>
         </java>
     </target>
+
+    <!-- Phase 18c: Prüfung ohne Fenster und ohne Grafikkarte (Daten, Regie im Raum, Glutkern, Regen, Bedienung, Klang,
+         Bauten, Datenbank, wenn erreichbar). Protokoll in docs/status/Pruefung_Phase18c.txt. -->
+    <target name="pruefung" depends="compile" description="Prüft Thunder in 3D (tools.Pruefung), mit Datenbank, wenn erreichbar.">
+        <property name="platform.java" value="java"/>
+        <java classname="com.dan.thunder.tools.Pruefung" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
+            <jvmarg value="-Dstdout.encoding=UTF-8"/>
+            <jvmarg value="-Xmx2g"/>
+            <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+            <classpath><pathelement path="${run.classpath}"/></classpath>
+        </java>
+    </target>
+
+    <!-- Phase 18c: Dauerlauf, 30 Minuten ohne Fenster (Regie, Ansichten, Stufen, Stimmung, Klicks, Kronen, Turm,
+         Qualität, Regen, Sanfte Blitze, Klang offline). Mit -Ddauer.minuten=5 kürzer. -->
+    <target name="dauerlauf" depends="compile" description="Dauerlauf 30 Minuten (tools.Dauerlauf), Protokoll docs/status/Dauerlauf_Phase18c.txt.">
+        <property name="platform.java" value="java"/>
+        <property name="dauer.minuten" value="30"/>
+        <java classname="com.dan.thunder.tools.Dauerlauf" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
+            <jvmarg value="-Dstdout.encoding=UTF-8"/>
+            <jvmarg value="-Xmx4g"/>
+            <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+            <arg value="${dauer.minuten}"/>
+            <arg value="1920"/>
+            <arg value="docs/status/Dauerlauf_Phase18c.txt"/>
+            <classpath><pathelement path="${run.classpath}"/></classpath>
+        </java>
+    </target>
 </project>

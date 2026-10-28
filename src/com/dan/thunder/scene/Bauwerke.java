@@ -23,17 +23,22 @@ public final class Bauwerke {
     /** Farben der Körbe als Kennzahlen für die Streifen in bauten.frag (Blau, Grün, Blau, Rot). */
     public static final String[] KORB_FARBEN = {"#3C64BE", "#2E8B57", "#3C64BE", "#C8102E"};
 
-    public Bauwerke() {
+    /** Die Strandkörbe, die gebaut sind (seit 18c aus TH_SCENE_OBJECT). */
+    public final java.util.List<Lage.Korb> koerbe;
+
+    /** Mit den Strandkörben der Vorgabe. */
+    public Bauwerke() { this(Lage.koerbe(KORB_FARBEN)); }
+
+    /** Mit Strandkörben aus den Daten (Ort, Öffnung, Farbe); Leuchtturm und Seebrücke aus dem Code. */
+    public Bauwerke(java.util.List<Lage.Korb> koerbe) {
+        this.koerbe = java.util.List.copyOf(koerbe);
         double lx = Site.LEUCHTTURM[0], lz = Site.LEUCHTTURM[1];
         double g = Gelaende.height(lx, lz);
         laterneTurm = turm(lx, g, lz);
         laterneBruecke = bruecke();
-        for (int i = 0; i < Site.KOERBE.length; i++) {
-            double[] k = Site.KOERBE[i], p = Site.welt(k[0], k[1]);
-            double y = Gelaende.height(p[0], p[1]);
-            // Öffnung zum Hauptblick (Peilung vom Korb zum Ursprung), leicht gestreut
-            double zumBlick = Math.toDegrees(Math.atan2(-p[0], p[1])) + (i % 2 == 0 ? 8 : -6);
-            korb(netz, p[0], y, p[1], zumBlick, kennzahl(KORB_FARBEN[i]));
+        for (Lage.Korb k : this.koerbe) {
+            double y = Gelaende.height(k.xM(), k.zM());
+            korb(netz, k.xM(), y, k.zM(), k.rotDeg(), kennzahl(k.farbe() == null ? "#3C64BE" : k.farbe()));
         }
     }
 

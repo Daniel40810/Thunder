@@ -67,6 +67,7 @@ public final class Klang {
     /** Donner aus dem Kanal des Blitzes (aus Lighthouse Phase 14). */
     void donner(Lightning.Thunder t) {
         donner++;
+        r.donnerAngekommen(t.distance());
         double[] ear = {s.earX, s.earY, s.earZ};
         Bolt b = t.bolt();
         double[] d = null, w = null, strokes = null;

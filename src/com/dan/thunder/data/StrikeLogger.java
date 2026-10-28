@@ -22,12 +22,23 @@ import java.util.function.Consumer;
  */
 public final class StrikeLogger implements AutoCloseable {
 
-    /** Eine Zeile für TH_STRIKE. */
+    /**
+     * Eine Zeile für TH_STRIKE; seit Phase 18c mit dem Ort in Metern (Einschlag bzw. Mitte der Entladung, x Ost, z Süd
+     * vom Hauptblick) und der Art des Blitzes in {@code com.dan.lightning} (CLOUD_GROUND, INTRA_CLOUD, SPIDER, SHEET).
+     */
     public record Entry(long epochMs, int levelId, Mood mood, String kind, boolean clicked, double distKm,
-                        Integer peakKa, double posX, long seed) { }
+                        Integer peakKa, double posX, long seed, Double xM, Double zM, String boltKind) {
+        public Entry(long epochMs, int levelId, Mood mood, String kind, boolean clicked, double distKm, Integer peakKa, double posX, long seed) {
+            this(epochMs, levelId, mood, kind, clicked, distKm, peakKa, posX, seed, null, null, null);
+        }
+    }
 
     private static final String SQL = "INSERT INTO TH_STRIKE (STRUCK_AT, LEVEL_ID, MOOD, KIND, ORIGIN, DIST_KM, "
             + "PEAK_KA, POS_X, SEED) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    /** Seit Phase 18c (nach sql/04_th_3d.sql). */
+    private static final String SQL_3D = "INSERT INTO TH_STRIKE (STRUCK_AT, LEVEL_ID, MOOD, KIND, ORIGIN, DIST_KM, "
+            + "PEAK_KA, POS_X, SEED, X_M, Z_M, BOLT_KIND) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private Boolean mit3d;
 
     private final DbConfig config;
     private final Consumer<String> status;
@@ -57,6 +68,11 @@ public final class StrikeLogger implements AutoCloseable {
         return written;
     }
 
+    public boolean failed() { return failed; }
+
+    /** „mit Ort in Metern“, „ohne Ort (sql/04_th_3d.sql fehlt)“ oder „noch nicht verbunden“. */
+    public String art() { Boolean m = mit3d; return m == null ? "noch nicht verbunden" : m ? "mit Ort in Metern" : "ohne Ort (sql/04_th_3d.sql fehlt)"; }
+
     private void flush() {
         if (failed || queue.isEmpty()) {
             return;
@@ -69,7 +85,13 @@ public final class StrikeLogger implements AutoCloseable {
                 con = DriverManager.getConnection(config.url(), config.user(), config.password());
                 con.setAutoCommit(false);
             }
-            try (PreparedStatement ps = con.prepareStatement(SQL)) {
+            if (mit3d == null) {
+                try (PreparedStatement q = con.prepareStatement("SELECT COUNT(*) FROM USER_TAB_COLUMNS WHERE TABLE_NAME = 'TH_STRIKE' AND COLUMN_NAME IN ('X_M', 'Z_M', 'BOLT_KIND')");
+                     java.sql.ResultSet rs = q.executeQuery()) {
+                    mit3d = rs.next() && rs.getInt(1) == 3;
+                }
+            }
+            try (PreparedStatement ps = con.prepareStatement(mit3d ? SQL_3D : SQL)) {
                 for (Entry e : batch) {
                     ps.setTimestamp(1, new Timestamp(e.epochMs()));
                     if (e.levelId() > 0) {
@@ -88,6 +110,11 @@ public final class StrikeLogger implements AutoCloseable {
                     }
                     ps.setDouble(8, Math.round(Math.max(-9, Math.min(9, e.posX())) * 10000) / 10000.0);
                     ps.setLong(9, e.seed());
+                    if (mit3d) {
+                        if (e.xM() == null) ps.setNull(10, Types.NUMERIC); else ps.setDouble(10, Math.round(e.xM() * 10) / 10.0);
+                        if (e.zM() == null) ps.setNull(11, Types.NUMERIC); else ps.setDouble(11, Math.round(e.zM() * 10) / 10.0);
+                        if (e.boltKind() == null) ps.setNull(12, Types.VARCHAR); else ps.setString(12, e.boltKind());
+                    }
                     ps.addBatch();
                 }
                 ps.executeBatch();

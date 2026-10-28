@@ -48,7 +48,28 @@ Bedienung bleiben; das Schema bleibt DEMO.
   Hauptblick, Wellen an den Pfählen der Seebrücke.
 - Die alten Pakete `render` und `audio` und der `ScreenshotHarness` sind entfernt.
 
-Bedienung, Blitzprotokoll und Datenbank (`sql/04_th_3d.sql`) kommen in 18c.
+**Stand 18c, Bedienung, Datenbank, Prüfung:**
+
+- **Fenster:** startet maximiert, „Wiederherstellen“ in der Titelleiste stellt die Größe von vorher her.
+- **Klick in die Szene:** ein Blitz über die Regie (im Protokoll als KLICK). Im Himmel gilt wie im 2D-Thunder: je
+  höher der Klick, desto näher (0,4 bis 9,4 km). Auf See und Strand schlägt er genau dort ein.
+- **Tasten:** B Erdblitz in Blickrichtung, K Blitzkrone, T Einschlag in den Leuchtturm, G nächste Qualitätsstufe,
+  1 bis 5 Ansichten, H HUD, F12 Foto.
+- **Blitzkarte** oben rechts wie im 2D-Thunder: der letzte Blitz mit Art, Abstand, Richtung und kA, der Countdown zum
+  Donner, Blitze je Minute. Kommt der Donner eines Blitzes unter 1,5 km an, **bebt das Bild**.
+- **Datenbank:** `sql/04_th_3d.sql` (wiederholbar, auch auf einer bestehenden Installation):
+  - `TH_SCENE_OBJECT` bekommt die Lage in Metern (`X_M`, `Z_M`, `ROT_DEG`).
+  - Neue Tabelle `TH_VIEW` mit den fünf Ansichten.
+  - `TH_STRIKE` bekommt den Ort jedes Blitzes in Metern (`X_M`, `Z_M`) und seine Art in `lightning` (`BOLT_KIND`).
+  - Neue Sicht `TH_STRIKE_ORT_V` zeigt die Blitze mit Peilung und Abstand.
+
+  Die App nimmt die Strandkörbe und die Ansichten aus der Datenbank. Leuchtturm und Seebrücke hängen am Gelände,
+  ihre Lage in der Datenbank dient dem Auswerten. Ohne `04` oder ohne Datenbank gelten die eingebauten Werte.
+- **Blitzprotokoll:** jeder Blitz nach `TH_STRIKE`, gesammelt alle 3 s in einem eigenen Faden.
+- **Prüfung:** `ant pruefung` (`tools.Pruefung`) läuft ohne Fenster: Daten = SQL = Code, Regie im Raum je Stufe,
+  Glutkern, Regen, Klick und Tasten, Beben, Donner, Bauten, Datenbank. Die letzte Zeile lautet „alles in Ordnung“.
+- **Dauerlauf:** `ant dauerlauf` (`tools.Dauerlauf`, 30 Minuten). Das Protokoll steht in
+  `docs/status/Dauerlauf_Phase18c.txt`.
 
 ![Stand 18b](docs/status/Status_Phase18b_claude.png)
 
@@ -56,7 +77,8 @@ Bedienung, Blitzprotokoll und Datenbank (`sql/04_th_3d.sql`) kommen in 18c.
 
 1. **Datenbank** (einmalig, als `DEMO`): in SQL Developer `sql/00_th_install.sql` öffnen und mit **F5** als Skript ausführen,
    oder `sqlplus DEMO@//localhost:1521/PDBORCL @sql/00_th_install.sql`.
-   Am Ende zeigt `03_th_check.sql` die erwarteten Zeilenzahlen (3 / 1 / 7 / 34).
+   Am Ende zeigt `03_th_check.sql` die erwarteten Zeilenzahlen (3 / 1 / 7 / 34 / 5 / 7).
+   Auf einer bestehenden Installation (das Blitzprotokoll bleibt) reicht `sql/04_th_3d.sql`; `00` löscht alles.
 2. **App**: In NetBeans *Run Project* (Hauptklasse `com.dan.thunder.app.ThunderApp`).
    Programmargumente: `--offline` (ohne Datenbank), `--nacht` (mit Nachtstimmung starten statt Abend).
 
@@ -75,6 +97,12 @@ wird nichts nach `TH_STRIKE` geschrieben.
 | Ton | erzeugter Klang, ohne Audiodateien: Donner mit echter Laufzeit (≈ 2,9 s/km), Regen, Brandung |
 | Sanfte Blitze | eine gedämpfte Entladung statt Flackern, schwaches Blitzlicht – für empfindliche Augen |
 | Theme-Auswahl | FTheme-Preset für die Bedienelemente; die Szene behält ihren eigenen Look |
+| Klick auf See oder Strand | Einschlag genau dort (seit 3D) |
+| 1 bis 5 · Pos1 | Ansichten aus `TH_VIEW`: Hauptblick, Seebrücke, Leuchtturm, Strandkorb, Drohne |
+| Maus ziehen · Rad · W A S D | drehen, zoomen, gehen (F: Kreisen oder Frei, R: Kreisen läuft) |
+| B · K · T | Erdblitz in Blickrichtung · Blitzkrone · Einschlag in den Leuchtturm |
+| G | nächste Qualitätsstufe (Niedrig, Mittel, Hoch, Ultra) |
+| H · F12 | HUD kurz, voll, aus · Foto nach `docs/status` |
 
 Die Karte oben rechts zeigt den letzten Blitz: Art, Entfernung, Scheitelstrom (kA), Countdown bis zum Donner
 und Blitze pro Minute.

@@ -8,13 +8,17 @@ import com.dan.thunder.model.SceneObject;
 import com.dan.thunder.model.SceneObject.Type;
 import com.dan.thunder.model.StormLevel;
 import com.dan.thunder.model.ThunderData;
+import com.dan.thunder.model.ViewDef;
+import com.dan.thunder.camera.Ansichten;
+import com.dan.thunder.scene.Bauwerke;
+import com.dan.thunder.scene.Lage;
 
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Rückfall ohne Datenbank. Die Werte entsprechen genau sql/02_th_data.sql.
+ * Rückfall ohne Datenbank. Die Werte entsprechen genau sql/02_th_data.sql und (seit Phase 18c) sql/04_th_3d.sql.
  */
 public final class BuiltinThunderRepository implements ThunderRepository {
 
@@ -27,14 +31,20 @@ public final class BuiltinThunderRepository implements ThunderRepository {
                         "Gewitter zieht über die Bucht, Einschläge im Wasser, Regen"),
                 new StormLevel(3, "SEVERE", "Unwetter", 1.6, 0.25, 0.20, 0.35, 6.0, 950, 1.00, 1.00,
                         "Zelle direkt über dem Strand, Blitzkronen, Starkregen und Sturmböen"));
+        // seit Phase 18c mit der Lage in Metern und den Ansichten wie in sql/04_th_3d.sql
+        List<Lage.Korb> k = Lage.koerbe(Bauwerke.KORB_FARBEN);
+        Lage.Objekt t = Lage.leuchtturm(), b = Lage.seebruecke(), d = Lage.duene();
+        List<ViewDef> views = new java.util.ArrayList<>();
+        for (Ansichten.Ansicht a : Ansichten.VORGABE) views.add(a.alsDaten());
         Scene scene = new Scene("OSTSEE", "Ostseestrand mit Leuchtturm und Seebrücke", 0.600, 0.800, 0.620, 0.330, List.of(
-                new SceneObject(Type.LEUCHTTURM, 0.140, 0.000, 1.00, Palette.hex("#C8102E")),
-                new SceneObject(Type.SEEBRUECKE, 0.780, 0.000, 1.00, null),
-                new SceneObject(Type.DUENE, 0.000, 1.000, 1.00, null),
-                new SceneObject(Type.STRANDKORB, 0.430, 0.220, 0.70, Palette.hex("#3C64BE")),
-                new SceneObject(Type.STRANDKORB, 0.510, 0.400, 0.82, Palette.hex("#2E8B57")),
-                new SceneObject(Type.STRANDKORB, 0.370, 0.620, 1.00, Palette.hex("#3C64BE")),
-                new SceneObject(Type.STRANDKORB, 0.600, 0.780, 1.15, Palette.hex("#C8102E"))));
+                new SceneObject(Type.LEUCHTTURM, 0.140, 0.000, 1.00, Palette.hex("#C8102E"), t.xM(), t.zM(), t.rotDeg()),
+                new SceneObject(Type.SEEBRUECKE, 0.780, 0.000, 1.00, null, b.xM(), b.zM(), b.rotDeg()),
+                new SceneObject(Type.DUENE, 0.000, 1.000, 1.00, null, d.xM(), d.zM(), d.rotDeg()),
+                new SceneObject(Type.STRANDKORB, 0.430, 0.220, 0.70, Palette.hex("#3C64BE"), k.get(0).xM(), k.get(0).zM(), k.get(0).rotDeg()),
+                new SceneObject(Type.STRANDKORB, 0.510, 0.400, 0.82, Palette.hex("#2E8B57"), k.get(1).xM(), k.get(1).zM(), k.get(1).rotDeg()),
+                new SceneObject(Type.STRANDKORB, 0.370, 0.620, 1.00, Palette.hex("#3C64BE"), k.get(2).xM(), k.get(2).zM(), k.get(2).rotDeg()),
+                new SceneObject(Type.STRANDKORB, 0.600, 0.780, 1.15, Palette.hex("#C8102E"), k.get(3).xM(), k.get(3).zM(), k.get(3).rotDeg())),
+                List.copyOf(views));
         Map<Mood, Palette> pal = new EnumMap<>(Mood.class);
         pal.put(Mood.NACHT, palette(
                 "#04060D", "#0A1024", "#2C2335", "#AA6E78", "#FF9A50",

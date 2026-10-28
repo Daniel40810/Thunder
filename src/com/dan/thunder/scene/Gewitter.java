@@ -253,11 +253,35 @@ public final class Gewitter implements StormListener {
         public double emberY() { Scene s = scene; return s == null ? 0.33 : s.emberY(); }
     };
 
+    /** Seit 18c: jeder Blitz der Regie mit dem gebauten Blitz (für das Blitzprotokoll und die Blitzkarte). */
+    public interface BlitzListener { void blitz(Strike s, Bolt b); }
+    public volatile BlitzListener onBlitz;
+
     @Override
     public void strikeStarted(Strike s) {
         if (!blitzeAn) return;
         double peil = Site.BLICK + (s.gx() / BUEHNE.width() - 0.5) * HFOV;
-        ausloesen(s.kind(), peil, s.distKm(), rnd.nextDouble());
+        Bolt b = ausloesen(s.kind(), peil, s.distKm(), rnd.nextDouble());
+        BlitzListener l = onBlitz;
+        if (l != null && b != null) l.blitz(s, b);
+    }
+
+    /**
+     * Ein Blitz von Hand (Klick, Taste) über die Regie, damit er wie jeder andere ins Protokoll kommt (ORIGIN KLICK):
+     * Art, Peilung (Grad von Nord), Abstand (km). Die Peilung wird zur Stelle auf der Bühne der Regie.
+     */
+    public void vonHand(StrikeKind kind, double peilung, double km) {
+        if (!blitzeAn) return;
+        double d = peilung - Site.BLICK;
+        d = ((d + 540) % 360) - 180;
+        double gx = (0.5 + d / HFOV) * BUEHNE.width();
+        regie.spawn(kind, time * 1000, BUEHNE, gx, Math.max(0.3, km), true, rnd.nextLong());
+    }
+
+    /** Peilung (Grad) und Abstand (km) des Leuchtturms vom Hauptblick: Taste T schlägt dort ein. */
+    public static double[] turm() {
+        double[] t = Site.LEUCHTTURM;
+        return new double[]{Lage.kurs(0, 0, t[0], t[1]), Math.hypot(t[0], t[1]) / 1000};
     }
 
     /**
@@ -270,7 +294,13 @@ public final class Gewitter implements StormListener {
         Bolt b;
         switch (kind) {
             case CG -> {
-                b = blitz.strike(p[0], p[1]);
+                // zielt die Regie (oder Taste T) auf einen hohen Punkt (unter 60 m), schlägt er dort ein
+                int fang = -1;
+                for (int i = 0; i < blitz.attractors.size(); i++) {
+                    Lightning.Attractor at = blitz.attractors.get(i);
+                    if (Math.hypot(at.x() - p[0], at.z() - p[1]) < 60) fang = i;
+                }
+                b = fang >= 0 ? blitz.strikeAttractor(fang) : blitz.strike(p[0], p[1]);
                 erdblitze++;
             }
             case IC -> {
