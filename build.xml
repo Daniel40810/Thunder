@@ -87,16 +87,16 @@
     <target name="-post-compile" depends="check-packages"/>
 
     <!-- Phase 18: Statusbild ohne Fenster (die fünf Bilder aus docs/ neben dem 3D-Blick, dazu die Ansichten). -->
-    <target name="statusbild" depends="compile" description="Rechnet docs/status/Status_Phase18b_claude.png (tools.Statusbild).">
+    <target name="statusbild" depends="compile" description="Rechnet docs/status/Status_Phase19_claude.png (tools.Statusbild).">
         <property name="platform.java" value="java"/>
         <java classname="com.dan.thunder.tools.Statusbild" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
             <jvmarg value="-Dstdout.encoding=UTF-8"/>
             <jvmarg value="-Xmx4g"/>
             <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
-            <arg value="docs/status/Status_Phase18b_claude.png"/>
+            <arg value="docs/status/Status_Phase19_claude.png"/>
             <arg value="2000"/>
             <arg value="HOCH"/>
-            <arg value="Thunder Phase 18b"/>
+            <arg value="Thunder · Sylt Phase 19"/>
             <arg value="ansichten"/>
             <classpath><pathelement path="${run.classpath}"/></classpath>
         </java>

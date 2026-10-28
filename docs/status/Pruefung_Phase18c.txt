@@ -1,0 +1,322 @@
+Microsoft Windows [Version 10.0.26300.9711]
+(c) Microsoft Corporation. Alle Rechte vorbehalten.
+
+C:\Users\Dan40810\Documents\NetBeansProjects\Thunder>ant pruefung
+Buildfile: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build.xml
+
+-pre-init:
+
+-init-private:
+
+-pre-init-libraries:
+
+-init-private-libraries:
+
+-init-libraries:
+
+-init-user:
+
+-init-project:
+
+-init-macrodef-property:
+
+-init-modules-supported:
+
+-do-init:
+
+-post-init:
+
+-init-check:
+
+-init-ap-cmdline-properties:
+
+-init-macrodef-modulename:
+
+-init-source-module-properties:
+
+-init-macrodef-javac-with-module:
+
+-init-macrodef-javac-with-processors:
+
+-init-macrodef-javac-without-processors:
+
+-init-macrodef-javac:
+
+-init-macrodef-test-impl:
+
+-init-macrodef-junit-init:
+
+-init-test-properties:
+
+-init-macrodef-junit-prototype-with-module:
+
+-init-macrodef-junit-prototype-without-module:
+
+-init-macrodef-junit-single:
+
+-init-macrodef-junit-batch:
+
+-init-macrodef-junit:
+
+-init-macrodef-junit-impl:
+
+-init-macrodef-testng:
+
+-init-macrodef-testng-impl:
+
+-init-macrodef-test:
+
+-init-macrodef-junit-debug-impl:
+
+-init-macrodef-test-debug-junit:
+
+-init-macrodef-testng-debug:
+
+-init-macrodef-testng-debug-impl:
+
+-init-macrodef-test-debug-testng:
+
+-init-macrodef-test-debug:
+
+-init-debug-args:
+
+-init-macrodef-nbjpda:
+
+-init-macrodef-debug:
+
+-init-macrodef-java-with-module:
+
+-init-macrodef-java-with-unnamed-module:
+
+-init-macrodef-java-without-module:
+
+-init-macrodef-java:
+
+-init-presetdef-jar:
+
+-init-ap-cmdline-supported:
+
+-init-ap-cmdline:
+
+init:
+
+-deps-jar-init:
+   [delete] Deleting: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\built-jar.properties
+
+deps-jar:
+
+-warn-already-built-jar:
+[propertyfile] Updating property file: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\built-jar.properties
+
+-check-automatic-build:
+
+-clean-after-automatic-build:
+
+-pre-init:
+
+-init-private:
+
+-pre-init-libraries:
+
+-init-private-libraries:
+
+-init-libraries:
+
+-init-user:
+
+-init-project:
+
+-init-macrodef-property:
+
+-init-modules-supported:
+
+-do-init:
+
+-post-init:
+
+-init-check:
+
+-init-ap-cmdline-properties:
+
+-init-macrodef-modulename:
+
+-init-source-module-properties:
+
+-init-macrodef-javac-with-module:
+
+-init-macrodef-javac-with-processors:
+
+-init-macrodef-javac-without-processors:
+
+-init-macrodef-javac:
+
+-init-macrodef-test-impl:
+
+-init-macrodef-junit-init:
+
+-init-test-properties:
+
+-init-macrodef-junit-prototype-with-module:
+
+-init-macrodef-junit-prototype-without-module:
+
+-init-macrodef-junit-single:
+
+-init-macrodef-junit-batch:
+
+-init-macrodef-junit:
+
+-init-macrodef-junit-impl:
+
+-init-macrodef-testng:
+
+-init-macrodef-testng-impl:
+
+-init-macrodef-test:
+
+-init-macrodef-junit-debug-impl:
+
+-init-macrodef-test-debug-junit:
+
+-init-macrodef-testng-debug:
+
+-init-macrodef-testng-debug-impl:
+
+-init-macrodef-test-debug-testng:
+
+-init-macrodef-test-debug:
+
+-init-debug-args:
+
+-init-macrodef-nbjpda:
+
+-init-macrodef-debug:
+
+-init-macrodef-java-with-module:
+
+-init-macrodef-java-with-unnamed-module:
+
+-init-macrodef-java-without-module:
+
+-init-macrodef-java:
+
+-init-presetdef-jar:
+
+-init-ap-cmdline-supported:
+
+-init-ap-cmdline:
+
+init:
+
+-deps-clean-init:
+
+deps-clean:
+
+-do-clean:
+   [delete] Deleting directory C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build
+
+-post-clean:
+
+clean:
+
+-verify-automatic-build:
+
+-pre-pre-compile:
+    [mkdir] Created dir: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\classes
+
+-pre-compile:
+
+-copy-persistence-xml:
+
+-compile-depend:
+
+-do-compile:
+    [mkdir] Created dir: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\empty
+    [mkdir] Created dir: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\generated-sources\ap-source-output
+    [javac] Compiling 55 source files to C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\classes
+     [copy] Copying 12 files to C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\classes
+
+check-packages:
+     [exec] check-packages: Renderer.jar mit 40 Packages (Quelle: Projekt Renderer)
+     [exec]   Package        Klassen  README  Java
+     [exec]   sky            44       ok      21
+     [exec]   cloud          16       ok      21
+     [exec]   ocean          27       ok      21
+     [exec]   surf           48       ok      21
+     [exec]   lightning      24       ok      21
+     [exec]   rain           12       ok      21
+     [exec]   soundscape     56       ok      21
+     [exec]   beacon         27       ok      21
+     [exec] check-packages: alle 8 gebrauchten Packages in Renderer.jar, dazu die Brecher aus surf, die See, Himmel undWolken.
+
+-post-compile:
+
+compile:
+
+pruefung:
+     [java] Thunder · Prüfung · Phase 18c · 2026-10-28T12:38:45
+     [java] Daten: sql/04_th_3d.sql = eingebaut = Code
+     [java]   ok      Objekt 1 (LEUCHTTURM): SQL 83.16 / -391.26 / 0.0°, eingebaut 83.16 / -391.26 / 0.0°
+     [java]   ok      Objekt 2 (SEEBRUECKE): SQL 15.56 / 2.83 / 66.1°, eingebaut 15.56 / 2.83 / 66.1°
+     [java]   ok      Objekt 3 (DUENE): SQL 0.00 / 0.00 / 45.0°, eingebaut 0.00 / 0.00 / 45.0°
+     [java]   ok      Objekt 4 (STRANDKORB): SQL 11.95 / -15.63 / 225.4°, eingebaut 11.95 / -15.63 / 225.4°
+     [java]   ok      Objekt 5 (STRANDKORB): SQL 12.59 / -12.16 / 220.0°, eingebaut 12.59 / -12.16 / 220.0°
+     [java]   ok      Objekt 6 (STRANDKORB): SQL 8.06 / -13.15 / 219.5°, eingebaut 8.06 / -13.15 / 219.5°
+     [java]   ok      Objekt 7 (STRANDKORB): SQL 10.47 / -7.21 / 229.4°, eingebaut 10.47 / -7.21 / 229.4°
+     [java]   ok      sieben Objekte mit Lage im SQL (7)
+     [java]   ok      Leuchtturm eingebaut = Code (Site.LEUCHTTURM)
+     [java]   ok      Seebrücke: Kurs 66,1° zum Kopf
+     [java]   ok      Ansicht 1 ?Hauptblick? im SQL = eingebaut
+     [java]   ok      Ansicht 2 ?Seebrücke? im SQL = eingebaut
+     [java]   ok      Ansicht 3 ?Leuchtturm? im SQL = eingebaut
+     [java]   ok      Ansicht 4 ?Strandkorb? im SQL = eingebaut
+     [java]   ok      Ansicht 5 ?Drohne? im SQL = eingebaut
+     [java]   ok      fünf Ansichten im SQL (5)
+     [java] Regie im Raum: je Stufe 10 Minuten
+     [java]   ok      Wetterleuchten: 10,7 Blitze je Minute (Stufe 10,9)
+     [java]   ok      Wetterleuchten: in der Wolke 70 % (Stufe 70 %), Kronen 0 % (Stufe 0 %)
+     [java]   ok      Wetterleuchten: 32 Erdblitze, 32 im Blickfeld, 32 im Abstand 5,0 bis 14,0 km
+     [java]   ok      Gewitter: 19,6 Blitze je Minute (Stufe 20,0)
+     [java]   ok      Gewitter: in der Wolke 35 % (Stufe 35 %), Kronen 1 % (Stufe 5 %)
+     [java]   ok      Gewitter: 126 Erdblitze, 126 im Blickfeld, 126 im Abstand 1,2 bis 9,0 km
+     [java]   ok      Unwetter: 37,0 Blitze je Minute (Stufe 37,5)
+     [java]   ok      Unwetter: in der Wolke 24 % (Stufe 25 %), Kronen 18 % (Stufe 20 %)
+     [java]   ok      Unwetter: 213 Erdblitze, 213 im Blickfeld, 213 im Abstand 0,4 bis 6,0 km
+     [java]   ok      Krone: 6 Spinnenblitze, alle innerhalb 1,6 km um den Glutkern
+     [java] Glutkern, Regen, Sanfte Blitze
+     [java]   ok      Glutkern in Peilung 54,5° (aus EMBER_X 0,62)
+     [java]   ok      Glutkern in der Wolke: 1100 m (Untergrenze 700 m)
+     [java]   ok      Glutkern atmet: 1,99 bis 4,36 (× Anpassung)
+     [java]   ok      Glutkern in der Farbe EMBER (orange)
+     [java]   ok      Regen Wetterleuchten: 1,4 mm/h
+     [java]   ok      Regen Gewitter: 10,1 mm/h
+     [java]   ok      Regen Unwetter: 30,0 mm/h
+     [java]   ok      Sanfte Blitze: ein Drittel des Lichts, die Regie gibt eine Entladung
+     [java] Bedienung: Klick, Tasten, Beben, Ansichten
+     [java]   ok      Klick hoch in den Himmel näher (0,4 km) als an der Kimm (3,5 km)
+     [java]   ok      Klick auf See und Strand: Einschlag dort (409 m, 45,0°)
+     [java]   ok      drei Klicks, drei Blitze über die Regie (ORIGIN KLICK)
+     [java]   ok      Taste T: Einschlag 0 m vom Leuchtturm (in den Turm gefangen)
+     [java]   ok      Taste K: eine Krone
+     [java]   ok      Beben bei Donner aus 400 m: 0,73
+     [java]   ok      Ansichten aus den Daten = Vorgabe (5)
+     [java]   ok      Strandkörbe aus den Daten = Vorgabe (4)
+     [java] Klang: Donner aus 1 km
+     [java]   ok      Donner kommt nach 2,9 s an (Schall aus 995 m: 2,9 s; der nächste Punkt des Kanals zählt)
+     [java]   ok      Donner hörbar: 16,3-mal so laut wie Wind und Brandung, Spitze 0,92
+     [java] Bauten
+     [java]   ok      vier Strandkörbe
+     [java]   ok      37 Pfähle der Seebrücke im Wasser (für den Klang)
+     [java]   ok      Laterne des Leuchtturms 26,4 m über dem Wasser
+     [java] Datenbank DEMO@//localhost:1521/PDBORCL
+     [java]   ok      sql/04_th_3d.sql gelaufen (TH_SCENE_OBJECT.X_M, Z_M, ROT_DEG und TH_VIEW da)
+     [java]   ok      TH_STRIKE mit X_M, Z_M, BOLT_KIND
+     [java]   ok      Lage der 7 Objekte in der Datenbank = Code (7)
+     [java]   ok      5 Ansichten in TH_VIEW = Code (5)
+     [java]   Blitzprotokoll: 488 Blitze, davon 65 mit Ort in Metern
+     [java] Thunder · Prüfung: alles in Ordnung (51 Prüfungen)
+
+BUILD SUCCESSFUL
+Total time: 7 seconds
+
+C:\Users\Dan40810\Documents\NetBeansProjects\Thunder>

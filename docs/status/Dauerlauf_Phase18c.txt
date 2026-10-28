@@ -1,0 +1,34 @@
+Thunder · Dauerlauf · Phase 18c · 30 Minuten · 1920×1080 · 2026-10-28T12:39:47
+Rechner: Windows 11 · Java 21.0.8 · 16 Kerne · Xmx 4096 MB
+Grafik: AMD Radeon(TM) Graphics · OpenGL 4.6
+Minute  1 · 15.7.2026 23:30 MESZ · Unwetter · 45 Bilder/s · Grafikkarte 2,2 ms · Prozessor 13,6 ms · schlechtestes Bild 195 ms · Auflösung 85 % (Mittel) · Speicher 102 MB · 64 Blitze, 43 Donner · Klang 3,0 %
+Minute  2 · 15.7.2026 23:31 MESZ · Unwetter · 61 Bilder/s · Grafikkarte 2,2 ms · Prozessor 8,4 ms · schlechtestes Bild 125 ms · Auflösung 100 % (Ultra) · Speicher 131 MB · 157 Blitze, 142 Donner · Klang 3,3 %
+Minute  3 · 15.7.2026 23:32 MESZ · Wetterleuchten · 60 Bilder/s · Grafikkarte 4,0 ms · Prozessor 8,6 ms · schlechtestes Bild 145 ms · Auflösung 100 % (Ultra) · Speicher 109 MB · 207 Blitze, 205 Donner · Klang 2,4 %
+Minute  4 · 15.7.2026 21:20 MESZ · Wetterleuchten · 193 Bilder/s · Grafikkarte 5,3 ms · Prozessor 4,1 ms · schlechtestes Bild 159 ms · Auflösung 67 % (Niedrig) · Speicher 57 MB · 225 Blitze, 216 Donner · Klang 1,8 %
+Minute  5 · 15.7.2026 21:21 MESZ · Wetterleuchten · 92 Bilder/s · Grafikkarte 5,2 ms · Prozessor 3,4 ms · schlechtestes Bild 116 ms · Auflösung 67 % (Niedrig) · Speicher 54 MB · 238 Blitze, 220 Donner · Klang 1,6 %
+Minute  6 · 15.7.2026 23:30 MESZ · Gewitter · 138 Bilder/s · Grafikkarte 5,7 ms · Prozessor 4,0 ms · schlechtestes Bild 132 ms · Auflösung 67 % (Niedrig) · Speicher 78 MB · 261 Blitze, 238 Donner · Klang 2,1 %
+Minute  7 · 15.7.2026 23:31 MESZ · Gewitter · 145 Bilder/s · Grafikkarte 5,8 ms · Prozessor 3,2 ms · schlechtestes Bild 121 ms · Auflösung 67 % (Niedrig) · Speicher 57 MB · 285 Blitze, 263 Donner · Klang 1,5 %
+Minute  8 · 15.7.2026 23:32 MESZ · Unwetter · 123 Bilder/s · Grafikkarte 5,7 ms · Prozessor 3,4 ms · schlechtestes Bild 328 ms · Auflösung 67 % (Niedrig) · Speicher 85 MB · 352 Blitze, 322 Donner · Klang 3,0 %
+Minute  9 · 15.7.2026 21:20 MESZ · Unwetter · 110 Bilder/s · Grafikkarte 5,7 ms · Prozessor 4,2 ms · schlechtestes Bild 101 ms · Auflösung 85 % (Mittel) · Speicher 90 MB · 415 Blitze, 393 Donner · Klang 3,1 %
+Minute 10 · 15.7.2026 21:21 MESZ · Unwetter · 81 Bilder/s · Grafikkarte 6,4 ms · Prozessor 5,3 ms · schlechtestes Bild 148 ms · Auflösung 85 % (Mittel) · Speicher 92 MB · 477 Blitze, 453 Donner · Klang 3,6 %
+Minute 11 · 15.7.2026 23:30 MESZ · Wetterleuchten · 81 Bilder/s · Grafikkarte 7,1 ms · Prozessor 4,7 ms · schlechtestes Bild 128 ms · Auflösung 85 % (Mittel) · Speicher 78 MB · 495 Blitze, 470 Donner · Klang 1,8 %
+Minute 12 · 15.7.2026 23:31 MESZ · Wetterleuchten · 115 Bilder/s · Grafikkarte 7,5 ms · Prozessor 4,7 ms · schlechtestes Bild 111 ms · Auflösung 85 % (Mittel) · Speicher 69 MB · 505 Blitze, 479 Donner · Klang 1,6 %
+Minute 13 · 15.7.2026 21:20 MESZ · Gewitter · 77 Bilder/s · Grafikkarte 7,6 ms · Prozessor 4,6 ms · schlechtestes Bild 123 ms · Auflösung 85 % (Mittel) · Speicher 83 MB · 530 Blitze, 500 Donner · Klang 2,6 %
+Minute 14 · 15.7.2026 21:21 MESZ · Gewitter · 46 Bilder/s · Grafikkarte 7,6 ms · Prozessor 6,8 ms · schlechtestes Bild 117 ms · Auflösung 85 % (Mittel) · Speicher 71 MB · 563 Blitze, 531 Donner · Klang 1,8 %
+Minute 15 · 15.7.2026 21:22 MESZ · Unwetter · 81 Bilder/s · Grafikkarte 8,6 ms · Prozessor 6,4 ms · schlechtestes Bild 359 ms · Auflösung 85 % (Mittel) · Speicher 90 MB · 609 Blitze, 560 Donner · Klang 2,9 %
+Minute 16 · 15.7.2026 23:30 MESZ · Unwetter · 94 Bilder/s · Grafikkarte 9,1 ms · Prozessor 5,0 ms · schlechtestes Bild 124 ms · Auflösung 67 % (Niedrig) · Speicher 83 MB · 678 Blitze, 642 Donner · Klang 3,4 %
+Minute 17 · 15.7.2026 23:31 MESZ · Unwetter · 140 Bilder/s · Grafikkarte 9,2 ms · Prozessor 4,5 ms · schlechtestes Bild 98 ms · Auflösung 67 % (Niedrig) · Speicher 79 MB · 753 Blitze, 712 Donner · Klang 2,3 %
+Minute 18 · 15.7.2026 21:20 MESZ · Wetterleuchten · 166 Bilder/s · Grafikkarte 8,9 ms · Prozessor 3,4 ms · schlechtestes Bild 123 ms · Auflösung 67 % (Niedrig) · Speicher 75 MB · 788 Blitze, 754 Donner · Klang 1,9 %
+Minute 19 · 15.7.2026 21:21 MESZ · Wetterleuchten · 101 Bilder/s · Grafikkarte 8,4 ms · Prozessor 4,9 ms · schlechtestes Bild 95 ms · Auflösung 85 % (Mittel) · Speicher 67 MB · 799 Blitze, 761 Donner · Klang 1,3 %
+Minute 20 · 15.7.2026 21:22 MESZ · Gewitter · 60 Bilder/s · Grafikkarte 8,5 ms · Prozessor 5,5 ms · schlechtestes Bild 156 ms · Auflösung 85 % (Mittel) · Speicher 76 MB · 816 Blitze, 772 Donner · Klang 2,0 %
+Minute 21 · 15.7.2026 23:30 MESZ · Gewitter · 99 Bilder/s · Grafikkarte 9,2 ms · Prozessor 7,1 ms · schlechtestes Bild 132 ms · Auflösung 67 % (Niedrig) · Speicher 91 MB · 854 Blitze, 811 Donner · Klang 2,7 %
+Minute 22 · 15.7.2026 23:31 MESZ · Gewitter · 184 Bilder/s · Grafikkarte 9,4 ms · Prozessor 3,3 ms · schlechtestes Bild 87 ms · Auflösung 67 % (Niedrig) · Speicher 67 MB · 875 Blitze, 832 Donner · Klang 1,6 %
+Minute 23 · 15.7.2026 21:20 MESZ · Unwetter · 174 Bilder/s · Grafikkarte 9,0 ms · Prozessor 4,5 ms · schlechtestes Bild 267 ms · Auflösung 67 % (Niedrig) · Speicher 90 MB · 956 Blitze, 913 Donner · Klang 3,0 %
+Minute 24 · 15.7.2026 21:21 MESZ · Unwetter · 28 Bilder/s · Grafikkarte 8,7 ms · Prozessor 12,5 ms · schlechtestes Bild 354 ms · Auflösung 100 % (Ultra) · Speicher 113 MB · 1022 Blitze, 972 Donner · Klang 3,5 %
+Minute 25 · 15.7.2026 23:30 MESZ · Wetterleuchten · 53 Bilder/s · Grafikkarte 8,7 ms · Prozessor 7,5 ms · schlechtestes Bild 155 ms · Auflösung 100 % (Ultra) · Speicher 87 MB · 1058 Blitze, 1015 Donner · Klang 1,6 %
+Minute 26 · 15.7.2026 23:31 MESZ · Wetterleuchten · 126 Bilder/s · Grafikkarte 9,6 ms · Prozessor 6,6 ms · schlechtestes Bild 198 ms · Auflösung 85 % (Mittel) · Speicher 63 MB · 1075 Blitze, 1026 Donner · Klang 1,5 %
+Minute 27 · 15.7.2026 23:32 MESZ · Gewitter · 123 Bilder/s · Grafikkarte 9,5 ms · Prozessor 3,8 ms · schlechtestes Bild 87 ms · Auflösung 85 % (Mittel) · Speicher 71 MB · 1092 Blitze, 1036 Donner · Klang 1,5 %
+Minute 28 · 15.7.2026 21:20 MESZ · Gewitter · 209 Bilder/s · Grafikkarte 9,4 ms · Prozessor 2,9 ms · schlechtestes Bild 83 ms · Auflösung 67 % (Niedrig) · Speicher 59 MB · 1119 Blitze, 1064 Donner · Klang 2,3 %
+Minute 29 · 15.7.2026 21:21 MESZ · Gewitter · 105 Bilder/s · Grafikkarte 8,9 ms · Prozessor 3,8 ms · schlechtestes Bild 91 ms · Auflösung 67 % (Niedrig) · Speicher 61 MB · 1142 Blitze, 1087 Donner · Klang 2,1 %
+Ende nach 30,0 Minuten: 87811 Bilder, im Mittel 107,2 Bilder/s, schlechtestes Bild 359 ms, 149 Ereignisse, 1204 Blitze (418 Erdblitze, 177 in der Wolke, 101 Kronen, 51 Wetterleuchten), 1141 Donner, 13 Klicks, 13 Kronen von Hand, 12 Einschläge in den Turm, 13 Stufenwechsel, 12 Qualitätswechsel, Auflösung 0× geregelt, Speicher Minute 5: 54 MB, Ende: 61 MB, größter Ruck beim Qualitätswechsel 337 ms
+Dauerlauf bestanden

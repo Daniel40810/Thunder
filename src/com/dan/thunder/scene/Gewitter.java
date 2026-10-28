@@ -47,13 +47,17 @@ public final class Gewitter implements StormListener {
     /**
      * Glutkern: Abstand (m), Höhe (m), Perioden des Atmens (s) und Helligkeit. Er ist ein Bild, kein Messwert: seine
      * Leuchtdichte in der Wolke steht im festen Verhältnis zur Anpassung des Auges ({@link #glutBezug}), GLUT_FAKTOR mal
-     * so hell bei EMBER 1, damit er abends und nachts gleich glimmt wie in den Bildern des 2D-Thunder [G].
+     * so hell bei EMBER 1, damit er abends und nachts gleich glimmt wie in den Bildern des 2D-Thunder [G]. Seit Sylt Phase 19
+     * sitzt er 1,3 km über der Untergrenze (vorher 0,4 km): Das Licht verteilt sich weicher über die Unterseite, ohne
+     * Streifen (Befund 18c), und ist dafür stärker.
      */
-    public static final double GLUT_ABSTAND = 5000, GLUT_HOEHE = 1100, ATEM_A = 3.7, ATEM_B = 6.1, GLUT_FAKTOR = 8.0;
+    public static final double GLUT_ABSTAND = 5000, GLUT_HOEHE = 2000, ATEM_A = 3.7, ATEM_B = 6.1, GLUT_FAKTOR = 30.0;
     /** Leuchtdichte je cd mitten in der Wolke ({@code composite.frag} von com.dan.cloud: 3 / (4π · 800²)). */
     static final double GLUT_JE_CD = 3 / (4 * Math.PI * 640_000);
     /** Leuchtdichte, an die das Auge angepasst ist (cd/m²), vom Renderer je Bild. */
     public volatile double glutBezug = 1;
+    /** Glutkern an (zum Vergleichen aus). */
+    public volatile boolean glutAn = !"aus".equals(System.getProperty("thunder.glut"));
     /** Glutkern jetzt: Vielfaches der Anpassung (HUD). */
     public volatile double glutJetzt;
     /**
@@ -170,7 +174,7 @@ public final class Gewitter implements StormListener {
         // Glutkern: zwei Perioden und ein wenig Flackern, Stärke EMBER der Stufe
         double ember = l == null ? 0.55 : l.ember();
         double atem = 0.72 + 0.18 * Math.sin(2 * Math.PI * time / ATEM_A) + 0.10 * Math.sin(2 * Math.PI * time / ATEM_B + 1.3);
-        glutJetzt = GLUT_FAKTOR * ember * atem * (blitzeAn ? 1 : 0);
+        glutJetzt = GLUT_FAKTOR * ember * atem * (blitzeAn && glutAn ? 1 : 0);
         double cd = glutJetzt * glutBezug / GLUT_JE_CD;
         double[] f = farbe(PaletteRole.EMBER);
         glutRgb = new double[]{f[0] * cd, f[1] * cd, f[2] * cd};

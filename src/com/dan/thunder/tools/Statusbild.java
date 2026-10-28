@@ -41,7 +41,7 @@ public final class Statusbild {
             {null, 0.0, 0.0, 0.0, 0, 0.0},
             {StrikeKind.CG, 41.0, 1.4, 0.0, 0, 0.012},
             {StrikeKind.CROWN, 0.0, 0.0, 0.0, 0, 0.015},
-            {StrikeKind.IC, 66.0, 6.0, 0.2, 0, 0.02},
+            {StrikeKind.IC, 66.0, Double.parseDouble(System.getProperty("bild3.km", "8.5")), 0.2, 0, 0.02},
             {StrikeKind.CG, 73.0, 2.6, 0.0, 1, 0.010}};
 
     /** Die fünf Bilder in docs/: Datei, Stufe (Code), Stimmung, Beschriftung. */
@@ -99,7 +99,9 @@ public final class Statusbild {
         d.addGLEventListener(r);
         d.display();
         if (r.error() != null) { System.err.println("FEHLER: " + r.error()); System.exit(2); }
+        String nur = System.getProperty("bilder", "");
         for (int i = 0; i < n; i++) {
+            if (!nur.isEmpty() && !("," + nur + ",").contains("," + i + ",")) continue;
             StormLevel l = level(data, BILDER[i][1]);
             r.setLevel(l);
             r.setMood(Mood.valueOf(BILDER[i][2]), true);

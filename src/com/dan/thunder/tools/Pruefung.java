@@ -153,7 +153,9 @@ public final class Pruefung {
             int imFeld = 0, imAbstand = 0;
             for (double[] c : cg) {
                 double peil = Lage.kurs(0, 0, c[0], c[1]), d = ((peil - Site.BLICK + 540) % 360) - 180, km = Math.hypot(c[0], c[1]) / 1000;
-                if (Math.abs(d) <= Gewitter.HFOV / 2 + 3 || c[3] >= 0) imFeld++;
+                // der Kanal wandert beim Herabwachsen: bis 100 m neben dem Blickfeld zählt (bei 350 m sind das 16°)
+                double neben = Math.max(0, Math.abs(d) - Gewitter.HFOV / 2);
+                if (Math.sin(Math.toRadians(Math.min(90, neben))) * km * 1000 <= 100 || c[3] >= 0) imFeld++;
                 if ((km >= l.distMinKm() * 0.85 - 0.15 && km <= l.distMaxKm() * 1.1 + 0.2) || c[3] >= 0) imAbstand++;
             }
             check(!cg.isEmpty() && imFeld == cg.size() && imAbstand >= cg.size() * 0.95,
@@ -299,6 +301,24 @@ public final class Pruefung {
         check(b.koerbe.size() == 4, "vier Strandkörbe");
         check(b.pfaehle.size() >= 20, b.pfaehle.size() + " Pfähle der Seebrücke im Wasser (für den Klang)");
         check(b.laterneTurm[1] > Site.TURM_HOEHE, String.format(Locale.GERMAN, "Laterne des Leuchtturms %.1f m über dem Wasser", b.laterneTurm[1]));
+        // seit Sylt Phase 19: das Drehfeuer und die Naht der Brandung
+        com.dan.thunder.scene.Leuchtfeuer f = new com.dan.thunder.scene.Leuchtfeuer(b.laterneTurm, com.dan.beacon.Beacon.Quality.LOW);
+        f.sofort(0.5);
+        f.schritt(1, 0.5, 30, 10);
+        check(f.feuer.isOn() && f.feuer.optic == com.dan.beacon.Beacon.Optic.ROTATING && f.feuer.characteristic().text.startsWith("Fl(3)"),
+                "Leuchtfeuer: " + f.describe() + ", dreht sich");
+        f.sofort(20_000);
+        check(!f.feuer.isOn(), "Leuchtfeuer tags aus (20 000 lx)");
+        com.dan.thunder.scene.Brandung br = new com.dan.thunder.scene.Brandung();
+        br.see = (x, z) -> 0.1;
+        br.jetzt(0.71, 4.4);
+        double tief = 0;
+        var m = br.stueck().netz;
+        for (int i = 0; i < m.ns * m.ny; i++) {
+            int o = i * com.dan.surf.BreakerMesh.STRIDE;
+            if (m.vertices[o + 9] < -1 && Math.max(m.vertices[o + 6], m.vertices[o + 7]) < 0.05) tief = Math.max(tief, 0.1 - m.vertices[o + 1]);
+        }
+        check(br.loch() == null && tief > 0.3, String.format(Locale.GERMAN, "Brandung ohne Loch in der See: ruhiges Wasser bis %.2f m unter der See (Naht)", tief));
     }
 
     // ------------------------------------------------------------------ 7 Datenbank

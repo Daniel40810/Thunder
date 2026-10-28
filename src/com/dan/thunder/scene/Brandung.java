@@ -13,8 +13,11 @@ import java.util.Locale;
  * Brechern aus {@link WaveTrain} und dem Auflauf aus {@link Swash}. Die Ostsee hat kurze Windsee (H_s 0,6 m, T_p 4 s
  * in der Vorgabe) und keine Tide; die Wellen brechen schäumend auf dem Riff und am steilen Strand.
  * <p>
- * Der Grund des Stücks ist das Mittel des Geländes über seine Breite. In dem Stück zeichnet nicht {@code ocean},
- * sondern das Netz (die See lässt ein Loch mit weichem Rand). Ändert sich der Seegang deutlich, wird ein neues Stück im
+ * Der Grund des Stücks ist das Mittel des Geländes über seine Breite. Seit Sylt Phase 19 (wie Lighthouse Phase 17)
+ * lässt die See kein Loch mehr: Das Netz trägt die Höhe von {@code ocean} ({@link #see}); wo es tiefer als
+ * {@link #UEBER_GRUND} m ist, taucht sein ruhiges Wasser unter die See, und nur das weiße Wasser liegt obenauf. Am
+ * seewärtigen Rand und an den Seiten ist das Netz in den äußeren {@link #NAHT} m ganz die See. So zeichnet sich das
+ * Stück nicht mehr als Rechteck in der See ab (Befund 18c). Ändert sich der Seegang deutlich, wird ein neues Stück im
  * eigenen Faden gebaut und eingeschwungen (40 s), das alte läuft so lange weiter.
  */
 public final class Brandung {
@@ -53,6 +56,12 @@ public final class Brandung {
             return new float[]{(float) SX, 0, (float) SZ, 0, 0, 1, 0, 0, (float) AX, 0, (float) AZ, 0, (float) ox, 0, (float) oz, 1};
         }
     }
+
+    /** Die Höhe der See an einem Ort (von {@code ocean}); null = ohne Naht. */
+    public interface See { double hoehe(double x, double z); }
+    public volatile See see;
+    /** Naht: Rand in m, Raster der Abfrage in m, wie weit das ruhige Wasser unter der See liegt (m), ab welcher Tiefe die See zeichnet (m). */
+    static final double NAHT = 12, SEE_RASTER = 2.5, UNTER = 0.6, UEBER_GRUND = -0.5, SEE_TIEFE = 0.45;
 
     public final Surf surf = Surf.ostsee();
     private volatile Stueck aktiv;
@@ -95,6 +104,7 @@ public final class Brandung {
         }
         long t1 = System.nanoTime();
         s.netz.build(s.zug, s.xEnde, s.schwall);
+        naht(s, see);
         netzMs = netzMs * 0.9 + (System.nanoTime() - t1) / 1e6 * 0.1;
         schrittMs = schrittMs * 0.9 + (t1 - t0) / 1e6 * 0.1;
         meldung = beschreibe(s);
@@ -157,6 +167,7 @@ public final class Brandung {
         }
         sw.resetStatistics();
         st.netz.build(zug, xEnde, sw);
+        naht(st, see);
         meldung = beschreibe(st);
         return st;
     }
@@ -174,11 +185,71 @@ public final class Brandung {
     /** Für Standbilder: jetzt bauen. */
     public void jetzt(double hs, double tp) { if (an) aktiv = baue(hs, tp, reihen); }
 
-    /** Loch für die See: Mitte {x, z}, Achse {ux, uz} (zur Küste), halbe Länge, halbe Breite, weicher Rand; null ohne Stück. */
-    public double[][] loch() {
-        Stueck s = stueck();
-        if (s == null) return null;
-        double xa = 14, xe = s.xEnde, cx = (xa + xe) / 2;
-        return new double[][]{s.welt(cx, BREITE / 2), {SX, SZ}, {(xe - xa) / 2, BREITE / 2 - 16, 14}};
+    /** Seit Sylt Phase 19 kein Loch mehr in der See (die Naht legt das Netz an sie an); bleibt für die Hülle: null. */
+    public double[][] loch() { return null; }
+
+    /**
+     * Die See im Netz (aus Lighthouse Phase 17, {@code Sockelbrandung.naht}): die Höhe von {@code ocean} auf einem Raster
+     * von {@link #SEE_RASTER} m legt sich unter das Netz. Am Rand zur See und an den Seiten ist das Netz ganz die See,
+     * innen kommt der Wellenzug dazu. Wo der Grund tiefer als {@link #UEBER_GRUND} liegt, zeichnet die See selbst: Dort
+     * zeigt sich nur das weiße Wasser über ihr, das ruhige taucht {@link #UNTER} m unter sie. Danach die Normalen neu.
+     */
+    static void naht(Stueck s, See see) {
+        if (see == null) return;
+        com.dan.surf.BreakerMesh m = s.netz;
+        double laenge = s.xEnde;
+        int gx = (int) Math.ceil(laenge / SEE_RASTER) + 1, gy = (int) Math.ceil(BREITE / SEE_RASTER) + 1;
+        double[] g = new double[gx * gy];
+        for (int j = 0; j < gy; j++)
+            for (int i = 0; i < gx; i++) {
+                double[] p = s.welt(i * SEE_RASTER, j * SEE_RASTER);
+                g[j * gx + i] = see.hoehe(p[0], p[1]);
+            }
+        float[] v = m.vertices;
+        int ns = m.ns, ny = m.ny;
+        double level = s.zug.level;
+        for (int r = 0; r < ny; r++)
+            for (int k = 0; k < ns; k++) {
+                int o = (r * ns + k) * com.dan.surf.BreakerMesh.STRIDE;
+                double x = v[o], y = v[o + 2];
+                // Rand: seewärts (x = 0) und an den Seiten; landwärts liegt der Strand
+                double ed = Math.min(x, Math.min(y, BREITE - y));
+                double w = Math.max(0, Math.min(1, ed / NAHT));
+                w = w * w * (3 - 2 * w);
+                double u = Math.max(0, Math.min(gx - 1.001, x / SEE_RASTER)), q = Math.max(0, Math.min(gy - 1.001, y / SEE_RASTER));
+                int i = (int) u, j = (int) q;
+                double fu = u - i, fq = q - j;
+                double h = (g[j * gx + i] * (1 - fu) + g[j * gx + i + 1] * fu) * (1 - fq) + (g[(j + 1) * gx + i] * (1 - fu) + g[(j + 1) * gx + i + 1] * fu) * fq;
+                double bed = v[o + 9], still = Math.max(0, level - bed);
+                double lim = SEE_TIEFE * still / Math.max(1e-3, w);
+                double sea = Math.max(-lim, Math.min(lim, h - level));
+                double yt = v[o + 1];
+                if (yt < bed) continue;
+                double yn = level + sea + (yt - level) * w;
+                if (bed < UEBER_GRUND) {
+                    double a = Math.max(0, Math.min(1, (Math.max(v[o + 6], v[o + 7]) * w - 0.12) / 0.33));
+                    a = a * a * (3 - 2 * a);
+                    double top = h + Math.max(0, yt - level) * w + 0.04;
+                    yn = (h - UNTER) * (1 - a) + top * a;
+                }
+                v[o + 1] = (float) Math.max(bed - 0.03, yn);
+                v[o + 6] *= (float) w;
+                v[o + 7] *= (float) w;
+            }
+        for (int r = 0; r < ny; r++)
+            for (int i = 0; i < ns; i++) {
+                int st = com.dan.surf.BreakerMesh.STRIDE;
+                int i0 = Math.max(0, i - 1), i1 = Math.min(ns - 1, i + 1), r0 = Math.max(0, r - 1), r1 = Math.min(ny - 1, r + 1);
+                int a = (r * ns + i0) * st, b = (r * ns + i1) * st, c = (r0 * ns + i) * st, d = (r1 * ns + i) * st;
+                double sx = v[b] - v[a], sy = v[b + 1] - v[a + 1], sz = v[b + 2] - v[a + 2];
+                double tx = v[d] - v[c], ty = v[d + 1] - v[c + 1], tz = v[d + 2] - v[c + 2];
+                double nx = ty * sz - tz * sy, nyy = tz * sx - tx * sz, nz = tx * sy - ty * sx;
+                double l = Math.sqrt(nx * nx + nyy * nyy + nz * nz);
+                if (l < 1e-12) { nx = 0; nyy = 1; nz = 0; l = 1; }
+                int o = (r * ns + i) * st;
+                v[o + 3] = (float) (nx / l);
+                v[o + 4] = (float) (nyy / l);
+                v[o + 5] = (float) (nz / l);
+            }
     }
 }

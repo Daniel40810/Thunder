@@ -85,6 +85,11 @@ public final class Renderer implements GLEventListener {
     public final Gewitter gewitter = new Gewitter();
     public final Klang klang;
     final LightningGl blitzGl = new LightningGl();
+    /** Das Drehfeuer des Leuchtturms (seit Sylt Phase 19, beacon) und seine Grafik. */
+    public final com.dan.thunder.scene.Leuchtfeuer feuer;
+    final com.dan.beacon.gl.BeaconGl feuerGl = new com.dan.beacon.gl.BeaconGl();
+    boolean feuerOk;
+    private double umgebungLux = 1;
     final RainGl regenGl = new RainGl();
     boolean blitzOk, regenOk;
     String blitzCheck = "", regenCheck = "";
@@ -94,7 +99,7 @@ public final class Renderer implements GLEventListener {
      */
     public static final double BLITZ_EINHEIT = 1 / Sky.CD_PER_UNIT;
     /** Wie weit die Belichtung im Blitz nachgibt (1 = so viel, dass ein voller Blitz gerade weiß wird) und wie schnell sie zurückgeht (s). */
-    public static final double GIVE_WEISS = 1.5, GIVE_TAU = 0.25;
+    public static final double GIVE_WEISS = 1.5, GIVE_TAU = 0.25, WOLKE_GIBT = 0.3;
     private double flashGive = 1, nass;
     private int depthCopyTex;
     /** Leuchtdichte der Laternen (cd/m²): Linse und Glas des Leuchtturms, die Lampe der Seebrücke [G]. */
@@ -171,6 +176,7 @@ public final class Renderer implements GLEventListener {
         camera.groundLevel = Gelaende.height(camera.eye[0], camera.eye[2]);
         camera.snap();
         klang = new Klang(this);
+        feuer = new com.dan.thunder.scene.Leuchtfeuer(bauwerke.laterneTurm, com.dan.beacon.Beacon.Quality.MEDIUM);
     }
 
     public void setStatusListener(Consumer<String> l) { statusListener = l == null ? s -> { } : l; }
@@ -281,7 +287,15 @@ public final class Renderer implements GLEventListener {
     /** Belichtung ohne das Nachgeben im Blitz. */
     double exposureBase() { return exposure() * flashGive; }
 
+    /** Licht am Turm in lx (für den Dämmerungsschalter), unter den Wolken gedämpft. */
+    double lichtAmTurm() {
+        if (!wetter.skyOk) return 1;
+        Sky.State st = wetter.state();
+        return com.dan.thunder.scene.Leuchtfeuer.lux(st.sunColor, st.sunDir[1], st.skyIrradiance) * (wetter.cloudsOk && showClouds ? 0.5 + 0.5 * cloudShade : 1);
+    }
+
     public void readapt() {
+        feuer.sofort(lichtAmTurm());
         viewLum = -1;
         adaptLum = -1;
         belichtung.reset();
@@ -343,6 +357,12 @@ public final class Renderer implements GLEventListener {
         meer.init(gl, compute.ok(), errorListener);
         brandungGl.init(gl);
         try {
+            feuerGl.init(gl);
+            feuerOk = true;
+        } catch (RuntimeException e) {
+            System.err.println("Thunder: Leuchtfeuer nicht verfügbar: " + e.getMessage());
+        }
+        try {
             blitzGl.init(gl);
             blitzOk = true;
             System.out.println("Thunder: Blitze (lightning) bereit");
@@ -394,6 +414,7 @@ public final class Renderer implements GLEventListener {
         wiring.feed(meer.ocean);
         meer.ocean.step(dt);
         brandung.an = showBrandung && showOcean;
+        if (brandung.see == null) brandung.see = (x, z) -> meer.ocean.heightAt(x, z);
         brandung.schritt(dt, wiring.seaHs(), wiring.seaTp());
         stepGewitter(dt, cloudsShown);
         klang.feed(dt);
@@ -427,6 +448,10 @@ public final class Renderer implements GLEventListener {
         gewitter.schritt(dt, wetter.clouds.snapshot(), cloudsShown, camera.eye.clone(), wiring.windSpeed(), wiring.windFromDeg());
         double r = gewitter.regen.rate > 0 ? gewitter.regen.rateAt(camera.eye[0], camera.eye[2]) : 0;
         nass += (Math.min(1, r / 8) - nass) * Math.min(1, dt / (r > 0 ? 40 : 300));
+        // das Leuchtfeuer: Licht am Turm, Sicht, Regen am Turm
+        umgebungLux = lichtAmTurm();
+        double[] t = bauwerke.laterneTurm;
+        feuer.schritt(dt, umgebungLux, wiring.visibilityKm(), gewitter.regen.rate > 0 ? gewitter.regen.rateAt(t[0], t[2]) : 0);
         geben(dt);
     }
 
@@ -436,7 +461,10 @@ public final class Renderer implements GLEventListener {
         Lightning.Snapshot s = gewitter.blitz.snapshot();
         double lf = 0;
         if (gewitter.blitzeAn) {
-            lf = s.flashLuminance(e[0], e[1], e[2], gewitter.blitz.cloudBase) * BLITZ_EINHEIT;
+            // seit Sylt Phase 19: die hellen Stellen der Wolkenunterseite zählen nur zu 30 % (sonst gab die Belichtung bei der
+            // Krone so weit nach, dass ihre Äste kaum zu sehen waren; Befund 18c); die Fläche am Auge zählt voll
+            double peak = s.illuminanceAt(e[0], e[1], e[2], 0) * 0.6 / Math.PI;
+            lf = Math.max(peak, WOLKE_GIBT * s.flashLuminance(e[0], e[1], e[2], gewitter.blitz.cloudBase)) * BLITZ_EINHEIT;
             // die Luft dämpft das Licht bis zum Auge (das Paket rechnet hier ohne): Weg zum hellsten Lichtpunkt
             java.util.List<Lightning.Light> l = s.lights(1, 1);
             if (!l.isEmpty()) {
@@ -746,8 +774,22 @@ public final class Renderer implements GLEventListener {
             bautenShader.set(gl, "uTurmQ", (float) lb[0], (float) lb[2], (float) lb[1], 0.1f);
             double[] lamp = gewitter.farbe(PaletteRole.LAMP);
             double ku = preU;
-            bautenShader.set(gl, "uLensK", Wetter.scale(lamp, TURM_LINSE * ku));
-            bautenShader.set(gl, "uGlowK", Wetter.scale(lamp, TURM_GLAS * ku));
+            // seit Sylt Phase 19: die Laterne des Turms nach dem Drehfeuer (Linse zum Auge, Glas), wie in Sylt
+            if (feuerOk && feuer.an) {
+                feuerGl.update(gl, feuer.feuer.snapshot(), feuer.grid);
+                gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+                gl.glViewport(0, 0, w, h);
+                gl.glEnable(GL.GL_DEPTH_TEST);
+                gl.glDepthMask(true);
+                gl.glDepthFunc(reversedZ ? GL.GL_GREATER : GL.GL_LESS);
+                gl.glDisable(GL.GL_BLEND);
+                gl.glBindVertexArray(emptyVao);
+                bautenShader.use(gl);
+                laterne(gl, feuer.feuer.snapshot(), ku);
+            } else {
+                bautenShader.set(gl, "uLensK", Wetter.scale(lamp, TURM_LINSE * ku));
+                bautenShader.set(gl, "uGlowK", Wetter.scale(lamp, TURM_GLAS * ku));
+            }
             bautenShader.set(gl, "uLensQ", Wetter.scale(lamp, BRUECKE_LINSE * ku));
             bautenShader.set(gl, "uGlowQ", Wetter.scale(lamp, BRUECKE_GLAS * ku));
             bautenShader.set(gl, "uSpotPos", 0f, 0f, 0f, 0f);
@@ -829,6 +871,29 @@ public final class Renderer implements GLEventListener {
             zeichneRegen(gl, st, vp, inv, w, h, pre, preU, luft[0], blitzJetzt);
             gl.glBindVertexArray(emptyVao);
         }
+        // seit Sylt Phase 19: der Strahl des Leuchtfeuers durch Dunst und Regen, dazu sein Lichtpunkt
+        if (feuerOk && feuer.an) {
+            com.dan.beacon.Beacon.Snapshot fs = feuer.feuer.snapshot();
+            com.dan.beacon.gl.BeaconGl.View fv = new com.dan.beacon.gl.BeaconGl.View();
+            fv.viewProj = vp;
+            fv.invViewProj = inv;
+            fv.eye = camera.eye.clone();
+            fv.reversedZ = reversedZ;
+            fv.width = w;
+            fv.height = h;
+            fv.fovyDeg = fovy();
+            fv.depthTexture = depthTex;
+            fv.targetFbo = hdrColorFbo;
+            fv.preExposure = preU;
+            fv.maxDistance = 40_000;
+            fv.jitter = !frozen;
+            gl.glDisable(GL.GL_DEPTH_TEST);
+            if (feuer.strahl && fs.lit()) feuerGl.drawBeam(gl, fv); else feuerGl.beamOff();
+            if (fs.lit()) feuerGl.drawGlare(gl, fv, java.util.List.of(glare(fs, camera.eye, fovy(), h, feuer.feuer.hazePerM)));
+            gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+            gl.glViewport(0, 0, w, h);
+            gl.glBindVertexArray(emptyVao);
+        }
         if (blitzJetzt) {
             gl.glDisable(GL.GL_DEPTH_TEST);
             lv.depthTest = false;
@@ -866,6 +931,32 @@ public final class Renderer implements GLEventListener {
         gl.glBindVertexArray(0);
         gl.glUseProgram(0);
         mark(gl, 8);
+    }
+
+    /** Die Laterne des Turms aus dem Zustand des Feuers (aus Sylt, {@code Renderer.laterne}). */
+    private void laterne(GL4 gl, com.dan.beacon.Beacon.Snapshot s, double k) {
+        double half = s.lensHalfHeight();
+        bautenShader.set(gl, "uTurmK", (float) s.x(), (float) s.z(), (float) s.y(), (float) half);
+        if (!s.lit()) {
+            bautenShader.set(gl, "uLensK", 0f, 0f, 0f);
+            bautenShader.set(gl, "uGlowK", 0f, 0f, 0f);
+            return;
+        }
+        double dx = camera.eye[0] - s.x(), dy = camera.eye[1] - s.y(), dz = camera.eye[2] - s.z(), dl = Math.max(0.1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+        double g = s.lensGlow();
+        double[] tint = s.tint(), L = s.lensLuminance(dx / dl, dy / dl, dz / dl);
+        for (int c = 0; c < 3; c++) L[c] = Math.max(0, L[c] - g * tint[c]);
+        double cap = 5e4;
+        bautenShader.set(gl, "uLensK", (float) (Math.min(cap, L[0]) * k), (float) (Math.min(cap, L[1]) * k), (float) (Math.min(cap, L[2]) * k));
+        bautenShader.set(gl, "uGlowK", (float) (g * tint[0] * k), (float) (g * tint[1] * k), (float) (g * tint[2] * k));
+    }
+
+    /** Lichtpunkt des Feuers am Auge (aus Sylt, {@code FeuerGl.glare}). */
+    static com.dan.beacon.gl.BeaconGl.Glare glare(com.dan.beacon.Beacon.Snapshot s, double[] e, double fovy, int h, double sigma) {
+        double[] lux = s.illuminanceAt(e[0], e[1], e[2], sigma);
+        double dl = Math.sqrt((e[0] - s.x()) * (e[0] - s.x()) + (e[1] - s.y()) * (e[1] - s.y()) + (e[2] - s.z()) * (e[2] - s.z()));
+        double px = 2 * Math.tan(Math.toRadians(fovy) / 2) / Math.max(1, h) * dl;
+        return new com.dan.beacon.gl.BeaconGl.Glare(s.x(), s.y(), s.z(), lux, Math.max(0, Math.min(1, (2 * px - 0.9) / 0.9)), 2.5);
     }
 
     // ------------------------------------------------------------------ Gewitter auf der Grafikkarte (seit 18b)
@@ -1223,6 +1314,7 @@ public final class Renderer implements GLEventListener {
                 (regenOk ? "" : "!") + gewitter.regenZeile() + (regenOk && gewitter.regen.rate > 0 ? " · " + regenGl.info() : "") + (regenCheck.isEmpty() ? "" : " · " + regenCheck)
                         + String.format(Locale.GERMAN, " · Sand nass %.0f %%", nass * 100),
                 klang.describe(),
+                (feuerOk ? "" : "!") + feuer.describe(),
                 bauwerke.describe(),
                 Gelaende.describe(),
                 cameraLine(),
@@ -1290,6 +1382,7 @@ public final class Renderer implements GLEventListener {
         meer.dispose(gl);
         brandungGl.dispose(gl);
         if (blitzOk) blitzGl.dispose(gl);
+        if (feuerOk) feuerGl.dispose(gl);
         if (regenOk) regenGl.dispose(gl);
         klang.dispose();
         bautenGl.dispose(gl);
