@@ -6,6 +6,7 @@ import com.dan.thunder.gl.Quality;
 import com.dan.thunder.gl.Renderer;
 import com.dan.thunder.model.Mood;
 import com.dan.thunder.model.StormLevel;
+import com.dan.thunder.storm.StrikeKind;
 import com.dan.thunder.model.ThunderData;
 import com.dan.thunder.scene.SceneClock;
 import com.jogamp.opengl.GLCapabilities;
@@ -31,6 +32,17 @@ import java.util.Locale;
  */
 public final class Statusbild {
     private Statusbild() { }
+
+    /**
+     * Der Blitz je Bild (seit 18b, von Hand, die Regie ist aus): Art (null = keiner), Peilung (Grad), Abstand (km),
+     * Würfel (Spinne oder Wolkenblitz), Schlag, Zeit danach (s). Lage aus den Bildern in docs/ abgelesen [G].
+     */
+    static final Object[][] BLITZE = {
+            {null, 0.0, 0.0, 0.0, 0, 0.0},
+            {StrikeKind.CG, 41.0, 1.4, 0.0, 0, 0.012},
+            {StrikeKind.CROWN, 0.0, 0.0, 0.0, 0, 0.015},
+            {StrikeKind.IC, 66.0, 6.0, 0.2, 0, 0.02},
+            {StrikeKind.CG, 73.0, 2.6, 0.0, 1, 0.010}};
 
     /** Die fünf Bilder in docs/: Datei, Stufe (Code), Stimmung, Beschriftung. */
     static final String[][] BILDER = {
@@ -78,6 +90,8 @@ public final class Statusbild {
         SceneClock clock = new SceneClock();
         clock.lapse = 0;
         Renderer r = new Renderer(clock);
+        r.setDaten(data);
+        r.gewitter.regieAn = false;
         r.frozen = true;
         r.showHud = false;
         r.autoScale = false;
@@ -90,10 +104,16 @@ public final class Statusbild {
             r.setLevel(l);
             r.setMood(Mood.valueOf(BILDER[i][2]), true);
             r.placeView(Ansichten.taste(1));
-            BufferedImage b = render(d, r, 12);
+            Object[] bz = BLITZE[i];
+            BufferedImage b = render(d, r, 12, () -> {
+                r.gewitter.leeren();
+                if (bz[0] != null) r.blitzStandbild((StrikeKind) bz[0], (Double) bz[1], (Double) bz[2], (Double) bz[3], (Integer) bz[4], (Double) bz[5]);
+            });
             g.drawImage(b, i * cw, top + ch, cw, ch, null);
             label(g, String.format(Locale.GERMAN, "3D · %s · %s · %s", l.name(), BILDER[i][2].equals("NACHT") ? "Nacht" : "Abend", clock.timeLabel()), i * cw, top + ch);
             System.out.println(BILDER[i][3] + " · " + r.wiring.zeile() + " · " + r.brandung.meldung);
+            System.out.println("   " + r.gewitter.zeile() + " · " + r.gewitter.regenZeile());
+            System.out.println("   " + r.blitzDiagnose());
         }
         if (ansichten) {
             r.setLevel(level(data, "STORM"));
@@ -101,7 +121,7 @@ public final class Statusbild {
             for (int k = 2; k <= 5; k++) {
                 Ansichten.Ansicht an = Ansichten.taste(k);
                 r.placeView(an);
-                BufferedImage b = render(d, r, 6);
+                BufferedImage b = render(d, r, 6, r.gewitter::leeren);
                 int i = k - 2;
                 g.drawImage(b, i * cw, top + 2 * ch, cw, ch, null);
                 label(g, "Ansicht " + k + ": " + an.name(), i * cw, top + 2 * ch);
@@ -122,13 +142,14 @@ public final class Statusbild {
     }
 
     /** Vorlauf (Sekunden Szenenzeit), dann ein Bild. */
-    static BufferedImage render(GLOffscreenAutoDrawable d, Renderer r, double vorlauf) {
+    static BufferedImage render(GLOffscreenAutoDrawable d, Renderer r, double vorlauf, Runnable blitz) {
         r.camera.snap();
         r.step(1 / 30.0);
         r.brandungJetzt();
         for (int i = 0; i < vorlauf * 30; i++) r.step(1 / 30.0);
         r.readapt();
         r.camera.snap();
+        blitz.run();
         for (int i = 0; i < 16; i++) d.display();
         final BufferedImage[] img = new BufferedImage[1];
         d.invoke(true, x -> { img[0] = r.grab(x); return true; });

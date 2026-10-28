@@ -2,15 +2,23 @@ package com.dan.thunder.gl;
 
 import com.dan.cloud.Clouds;
 import com.dan.cloud.gl.CloudGl;
+import com.dan.lightning.Bolt;
+import com.dan.lightning.Lightning;
+import com.dan.lightning.gl.LightningGl;
+import com.dan.rain.gl.RainGl;
 import com.dan.sky.Sky;
 import com.dan.sky.gl.SkyGl;
 import com.dan.thunder.camera.Ansichten;
 import com.dan.thunder.camera.Camera;
 import com.dan.thunder.model.Mood;
+import com.dan.thunder.model.PaletteRole;
 import com.dan.thunder.model.StormLevel;
+import com.dan.thunder.model.ThunderData;
+import com.dan.thunder.storm.StrikeKind;
 import com.dan.thunder.scene.Bauwerke;
 import com.dan.thunder.scene.Brandung;
 import com.dan.thunder.scene.Gelaende;
+import com.dan.thunder.scene.Gewitter;
 import com.dan.thunder.scene.SceneClock;
 import com.dan.thunder.scene.Site;
 import com.dan.thunder.scene.Sun;
@@ -44,15 +52,19 @@ import java.util.function.Consumer;
  * <li><b>Bauten</b>: Leuchtturm, Seebrücke, Strandkörbe ({@link Bauwerke}, {@code bauten.vert/frag} aus Sylt).</li>
  * <li><b>Meer</b>: {@code com.dan.ocean} mit dem Gelände als Grund, vor dem Strand das Netz der Brecher aus
  * {@code com.dan.surf} ({@link Brandung}, {@code Surf.ostsee()}).</li>
- * <li><b>Wolken</b>: {@code com.dan.cloud} (Cumulonimbus) nach der Szene mit ihrer Tiefe.</li>
+ * <li><b>Wolken</b>: {@code com.dan.cloud} (Cumulonimbus) nach der Szene mit ihrer Tiefe; seit 18b leuchten sie
+ * von innen: die Lichtpunkte der Blitze und der Glutkern ({@link Gewitter}).</li>
+ * <li><b>Blitz und Regen</b> (seit 18b): die Kanäle aus {@code com.dan.lightning} (die Szene verdeckt sie), der Regen
+ * aus {@code com.dan.rain} (Vorhänge, Streifen, Krönchen), das Leuchten der Luft um die Kanäle. Gelände, Bauten und
+ * See bekommen das Licht der Blitze ({@code lightning.glsl}, Punktlichter der See), die Belichtung gibt im Blitz nach.</li>
  * <li><b>Nachbearbeitung</b>: Belichtung aus der Augenanpassung, Filmkurve; das HUD.</li>
  * </ol>
- * Blitze, Glutkern, Regen und Klang kommen in Phase 18b, Bedienung und Datenbank in 18c.
+ * Der Klang ({@link Klang}, {@code com.dan.soundscape}) läuft neben dem Bild. Bedienung und Datenbank folgen in 18c.
  */
 public final class Renderer implements GLEventListener {
     public static final int MIN_MAJOR = 4, MIN_MINOR = 3;
-    public static final String VERSION = "Phase 18a";
-    public static final String[] PASSES = {"Himmel", "Gelände", "Bauten", "Meer", "Wolken", "Nachbearbeitung", "HUD"};
+    public static final String VERSION = "Phase 18b";
+    public static final String[] PASSES = {"Himmel", "Gelände", "Bauten", "Meer", "Wolken", "Blitz und Regen", "Nachbearbeitung", "HUD"};
     private static final int MARKS = PASSES.length + 1;
     static final double NEAR = 0.2, FAR = 60_000, FOG_DISTANCE = 30_000;
 
@@ -67,6 +79,24 @@ public final class Renderer implements GLEventListener {
     final GelaendeGl gelaendeGl = new GelaendeGl();
     final BautenGl bautenGl = new BautenGl();
     private final Belichtung belichtung = new Belichtung();
+    /** Das Gewitter (Regie, Blitze, Glutkern, Regen) und sein Klang (seit 18b). */
+    public final Gewitter gewitter = new Gewitter();
+    public final Klang klang;
+    final LightningGl blitzGl = new LightningGl();
+    final RainGl regenGl = new RainGl();
+    boolean blitzOk, regenOk;
+    String blitzCheck = "", regenCheck = "";
+    /**
+     * Lichteinheit der Blitze: {@code com.dan.lightning} rechnet in cd, {@code com.dan.sky} in Einheiten von
+     * {@link Sky#CD_PER_UNIT} cd/m². Mit dieser Umrechnung steht ein Blitz in 5 km mit 0,4 lx im selben Maß wie die Nacht.
+     */
+    public static final double BLITZ_EINHEIT = 1 / Sky.CD_PER_UNIT;
+    /** Wie weit die Belichtung im Blitz nachgibt (1 = so viel, dass ein voller Blitz gerade weiß wird) und wie schnell sie zurückgeht (s). */
+    public static final double GIVE_WEISS = 1.5, GIVE_TAU = 0.25;
+    private double flashGive = 1, nass;
+    private int depthCopyTex;
+    /** Leuchtdichte der Laternen (cd/m²): Linse und Glas des Leuchtturms, die Lampe der Seebrücke [G]. */
+    public static final double TURM_LINSE = 4.0e4, TURM_GLAS = 600, BRUECKE_LINSE = 6.0e3, BRUECKE_GLAS = 900;
     /** Ebenen zum Abschalten. */
     public volatile boolean showClouds = true, showOcean = true, showBrandung = true, showBauten = true;
     public volatile boolean bildMessung = true;
@@ -138,6 +168,7 @@ public final class Renderer implements GLEventListener {
         camera.waterLevel = 0;
         camera.groundLevel = Gelaende.height(camera.eye[0], camera.eye[2]);
         camera.snap();
+        klang = new Klang(this);
     }
 
     public void setStatusListener(Consumer<String> l) { statusListener = l == null ? s -> { } : l; }
@@ -173,7 +204,13 @@ public final class Renderer implements GLEventListener {
     /** Die Gewitterstufe aus TH_STORM_LEVEL (Wind, See, Wolken). */
     public void setLevel(StormLevel l) {
         wiring.level = l;
+        gewitter.setLevel(l);
         hudMeldung("Stufe " + (l == null ? "?" : l.name()));
+    }
+
+    /** Farben (TH_PALETTE) und Ort des Glutkerns (TH_SCENE) aus den Daten. */
+    public void setDaten(ThunderData d) {
+        gewitter.setDaten(d.palette(Mood.ABEND), d.palette(Mood.NACHT), d.scene(), wiring.mood);
     }
 
     /**
@@ -213,10 +250,13 @@ public final class Renderer implements GLEventListener {
     }
 
     public double exposure() {
-        if (wetter.skyOk && adaptLum > 0) return Sky.State.exposureFor(adaptLum, adaptation) * Math.pow(2, exposureBias + stimmungEv());
+        if (wetter.skyOk && adaptLum > 0) return Sky.State.exposureFor(adaptLum, adaptation) * Math.pow(2, exposureBias + stimmungEv()) / flashGive;
         double b = Sun.skyBrightness(clock.sun()[0]);
-        return 0.6 * Math.pow(b, -0.85) * Math.pow(2, exposureBias + stimmungEv());
+        return 0.6 * Math.pow(b, -0.85) * Math.pow(2, exposureBias + stimmungEv()) / flashGive;
     }
+
+    /** Belichtung ohne das Nachgeben im Blitz. */
+    double exposureBase() { return exposure() * flashGive; }
 
     public void readapt() {
         viewLum = -1;
@@ -279,6 +319,22 @@ public final class Renderer implements GLEventListener {
         wiring.cloudsDrawn = wetter.cloudsOk;
         meer.init(gl, compute.ok(), errorListener);
         brandungGl.init(gl);
+        try {
+            blitzGl.init(gl);
+            blitzOk = true;
+            System.out.println("Thunder: Blitze (lightning) bereit");
+        } catch (RuntimeException e) {
+            System.err.println("Thunder: Blitze nicht verfügbar: " + e.getMessage());
+            errorListener.accept("Die Blitze (com.dan.lightning) lassen sich nicht starten.\n" + e.getMessage());
+        }
+        try {
+            regenGl.init(gl);
+            regenOk = true;
+            System.out.println("Thunder: Regen " + regenGl.info());
+        } catch (RuntimeException e) {
+            System.err.println("Thunder: Regen nicht verfügbar: " + e.getMessage());
+            errorListener.accept("Der Regen (com.dan.rain) lässt sich nicht starten.\n" + e.getMessage());
+        }
         bautenGl.init(gl);
         bautenGl.upload(gl, BautenGl.FEST, bauwerke.netz);
         System.out.println("Thunder: " + bauwerke.describe());
@@ -311,16 +367,76 @@ public final class Renderer implements GLEventListener {
         wiring.cloudsDrawn = cloudsShown;
         wiring.feed(wetter.sky, camera.eye[1]);
         wiring.feed(wetter.clouds);
+        wetter.clouds.precipitation = gewitter.niederschlag();
         wiring.feed(meer.ocean);
         meer.ocean.step(dt);
         brandung.an = showBrandung && showOcean;
         brandung.schritt(dt, wiring.seaHs(), wiring.seaTp());
+        stepGewitter(dt, cloudsShown);
+        klang.feed(dt);
         if (wetter.skyOk) {
             Sky.State st = wetter.sky.step(dt);
             wetter.clouds.step(dt);
             cloudShade = cloudsShown ? Clouds.shadow(wetter.clouds.snapshot(), camera.eye[0], camera.eye[2], Wetter.keyDir(st)) : 1;
             adapt(st, dt);
         }
+    }
+
+    /** Gewitter, Regen und Nässe weiter; wie weit die Belichtung im Blitz nachgibt. */
+    private void stepGewitter(double dt, boolean cloudsShown) {
+        gewitter.setStimmung(smooth(-4, -10, clock.sun()[0]));
+        if (adaptLum > 0) gewitter.glutBezug = adaptLum * Sky.CD_PER_UNIT;
+        gewitter.schritt(dt, wetter.clouds.snapshot(), cloudsShown, camera.eye.clone(), wiring.windSpeed(), wiring.windFromDeg());
+        double r = gewitter.regen.rate > 0 ? gewitter.regen.rateAt(camera.eye[0], camera.eye[2]) : 0;
+        nass += (Math.min(1, r / 8) - nass) * Math.min(1, dt / (r > 0 ? 40 : 300));
+        geben(dt);
+    }
+
+    /** Die Belichtung gibt im Blitz nach (aus Lighthouse Phase 10, hier in Einheiten der Szene). */
+    void geben(double dt) {
+        double[] e = camera.eye;
+        Lightning.Snapshot s = gewitter.blitz.snapshot();
+        double lf = 0;
+        if (gewitter.blitzeAn) {
+            lf = s.flashLuminance(e[0], e[1], e[2], gewitter.blitz.cloudBase) * BLITZ_EINHEIT;
+            // die Luft dämpft das Licht bis zum Auge (das Paket rechnet hier ohne): Weg zum hellsten Lichtpunkt
+            java.util.List<Lightning.Light> l = s.lights(1, 1);
+            if (!l.isEmpty()) {
+                Lightning.Light h = l.get(0);
+                double d = Math.sqrt((h.x() - e[0]) * (h.x() - e[0]) + (h.y() - e[1]) * (h.y() - e[1]) + (h.z() - e[2]) * (h.z() - e[2]));
+                lf *= Math.exp(-luft(wetter.skyOk ? wetter.state() : null)[0] * d);
+            }
+        }
+        double give = 1 + exposureBase() * lf / GIVE_WEISS;
+        flashGive = frozen || dt <= 0 ? give : Math.max(give, flashGive * Math.exp(-Math.max(0, dt) / GIVE_TAU));
+        lfZuletzt = lf;
+    }
+
+    private double lfZuletzt;
+
+    /** Für die Prüfung: Belichtung, Nachgeben, Leuchtdichte des Blitzes (Einheiten), Lichtpunkte. */
+    public String blitzDiagnose() {
+        return String.format(Locale.ROOT, "pre %.3g give %.3g lf %.3g lights %d cloud %d glut %.3g", exposureBase(), flashGive, lfZuletzt,
+                blitzGl.lightCount(), blitzGl.cloudLightCount(), gewitter.glutRgb[1]);
+    }
+
+    /**
+     * Für Standbilder: alle Blitze weg, dann einer von Hand (Art, Peilung, km) und das Gewitter bis zum Schlag
+     * {@code schlag} plus {@code nach} s weiter; die Krone kommt ganz. Die Regie bleibt aus.
+     */
+    public Bolt blitzStandbild(StrikeKind k, double peilung, double km, double u, int schlag, double nach) {
+        gewitter.regieAn = false;
+        gewitter.leeren();
+        Bolt b = gewitter.ausloesen(k, peilung, km, u);
+        if (k == StrikeKind.CROWN) gewitter.kroneSofort();
+        if (b != null) {
+            double t = b.strokeTime[Math.min(schlag, b.strokeTime.length - 1)] + nach;
+            gewitter.blitz.step(Math.max(1e-3, t));
+            gewitter.blitz.updateVisibility();
+        }
+        blitzGl.invalidate();
+        geben(0);
+        return b;
     }
 
     @Override
@@ -380,6 +496,13 @@ public final class Renderer implements GLEventListener {
         boolean cloudsNow = frameSky && wetter.cloudsOk && showClouds;
         Clouds.Snapshot cs = wetter.clouds.snapshot();
         CloudGl.Light cl = null;
+        // seit 18b: die Blitze übernehmen (neue Kanäle hochladen, Lichtpunkte für Wolken, See, Gelände und Bauten)
+        Lightning.Snapshot ls = gewitter.blitz.snapshot();
+        if (blitzOk) blitzGl.update(gl, ls);
+        boolean blitzJetzt = blitzOk && gewitter.blitzeAn && blitzGl.active();
+        double preU = (frameSky ? pre : exposure()) * BLITZ_EINHEIT;
+        double[] luft = luft(st);
+        double decke = cloudsNow ? cs.type().base : gewitter.blitz.cloudBase;
 
         // 1 Himmel und Rundumbild mit Wolken
         gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
@@ -409,6 +532,7 @@ public final class Renderer implements GLEventListener {
             gl.glBindVertexArray(emptyVao);
             if (cloudsNow) {
                 cl = wetter.cloudLight(st, pre);
+                inDieWolken(cl, preU, blitzJetzt);
                 wetter.cloudGl.update(gl, cs, cl, camera.eye.clone());
                 if (wetter.cloudCheck.isEmpty() && frame > 40) wetter.cloudCheck = wetter.cloudGl.selfCheck(gl, cs, cl);
             }
@@ -416,6 +540,8 @@ public final class Renderer implements GLEventListener {
             gl.glViewport(0, 0, Wetter.PANO_W, Wetter.PANO_H);
             wetter.skyGl.drawPanorama(gl, st, pre);
             if (cloudsNow) wetter.cloudGl.drawPanorama(gl, cs, cl, camera.eye.clone());
+            // seit 18b: Kanäle und Leuchten ins Rundumbild, damit die See sie spiegelt
+            if (blitzJetzt) blitzGl.drawPanorama(gl, Wetter.PANO_W, Wetter.PANO_H, camera.eye.clone(), preU, luft[0], luft[1], decke);
             gl.glBindTexture(GL.GL_TEXTURE_2D, wetter.panoTex);
             gl.glGenerateMipmap(GL.GL_TEXTURE_2D);
             gl.glBindTexture(GL.GL_TEXTURE_2D, 0);
@@ -426,6 +552,23 @@ public final class Renderer implements GLEventListener {
             common(gl, skyShader, vp, inv, sun);
             gl.glDrawArrays(GL.GL_TRIANGLES, 0, 3);
         }
+        // Regen: Tropfen und Ringe weiter; die Selbsttests einmal
+        boolean regenJetzt = regenOk && gewitter.regenAn && gewitter.regen.rate > 0;
+        if (regenOk) {
+            regenGl.update(gl, gewitter.regen.snapshot());
+            if (regenCheck.isEmpty() && regenJetzt && frame > 60) regenCheck = regenGl.selfCheck(gl, gewitter.regen.snapshot());
+        }
+        if (blitzJetzt && blitzCheck.isEmpty() && !frozen) {
+            for (Bolt b : ls.bolts())
+                if (b.kind == Bolt.Kind.CLOUD_GROUND && ls.time() > b.t0 + b.leaderTime) {
+                    blitzCheck = blitzGl.selfCheck(gl, ls);
+                    blitzGl.update(gl, ls);
+                    break;
+                }
+        }
+        gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+        gl.glViewport(0, 0, w, h);
+        gl.glBindVertexArray(emptyVao);
         mark(gl, 1);
 
         // 2 Gelände
@@ -434,7 +577,8 @@ public final class Renderer implements GLEventListener {
         gl.glDepthFunc(reversedZ ? GL.GL_GREATER : GL.GL_LESS);
         common(gl, gelaendeShader, vp, inv, sun);
         cloudShadow(gl, gelaendeShader, cloudsNow);
-        gelaendeShader.set(gl, "uWet", 0f);
+        blitzBinden(gl, gelaendeShader, preU, luft[0], blitzJetzt);
+        gelaendeShader.set(gl, "uWet", (float) nass);
         gelaendeGl.draw(gl);
         gl.glBindVertexArray(emptyVao);
         mark(gl, 2);
@@ -443,17 +587,20 @@ public final class Renderer implements GLEventListener {
         if (showBauten && bautenGl.ok) {
             common(gl, bautenShader, vp, inv, sun);
             cloudShadow(gl, bautenShader, cloudsNow);
+            blitzBinden(gl, bautenShader, preU, luft[0], blitzJetzt);
             bautenShader.set(gl, "uNight", (float) smooth(-1, -6, sp[0]));
             double k = (frameSky ? pre : exposure()) / Sky.CD_PER_UNIT;
             bautenShader.set(gl, "uWarm", (float) (15 * k), (float) (15 * k * 0.72), (float) (15 * k * 0.42));
-            // Laternen: Leuchtturm (K) und Seebrücke (Q) aus in 18a (ab 18b mit beacon)
+            // Laternen (seit 18b): Leuchtturm (K) und Seebrücke (Q) brennen im Gewitter, Farbe LAMP aus TH_PALETTE
             double[] lt = bauwerke.laterneTurm, lb = bauwerke.laterneBruecke;
             bautenShader.set(gl, "uTurmK", (float) lt[0], (float) lt[2], (float) lt[1], 0.3f);
             bautenShader.set(gl, "uTurmQ", (float) lb[0], (float) lb[2], (float) lb[1], 0.1f);
-            for (String t : new String[]{"K", "Q"}) {
-                bautenShader.set(gl, "uLens" + t, 0f, 0f, 0f);
-                bautenShader.set(gl, "uGlow" + t, 0f, 0f, 0f);
-            }
+            double[] lamp = gewitter.farbe(PaletteRole.LAMP);
+            double ku = preU;
+            bautenShader.set(gl, "uLensK", Wetter.scale(lamp, TURM_LINSE * ku));
+            bautenShader.set(gl, "uGlowK", Wetter.scale(lamp, TURM_GLAS * ku));
+            bautenShader.set(gl, "uLensQ", Wetter.scale(lamp, BRUECKE_LINSE * ku));
+            bautenShader.set(gl, "uGlowQ", Wetter.scale(lamp, BRUECKE_GLAS * ku));
             bautenShader.set(gl, "uSpotPos", 0f, 0f, 0f, 0f);
             bautenGl.draw(gl, true, false, false, false);
             gl.glBindVertexArray(emptyVao);
@@ -467,9 +614,23 @@ public final class Renderer implements GLEventListener {
             boolean netz = brandung.stueck() != null;
             meer.draw(gl, vp, camera.eye, reversedZ, st, pre, frameSky ? wetter.panoTex : 0, cloudsNow ? wetter.cloudGl.shadowTexture() : 0,
                     cloudsNow ? wetter.cloudGl.shadowRect() : new double[]{0, 0, 1}, sun, sunLight(sp[0]), FOG_DISTANCE,
-                    ol -> { if (netz) brandungGl.feed(ol, brandung); });
+                    ol -> {
+                        if (netz) brandungGl.feed(ol, brandung);
+                        aufsMeer(ol, preU, luft, blitzJetzt);
+                        if (regenJetzt) {
+                            ol.detailTexture = regenGl.rippleTexture();
+                            ol.detailTile = regenGl.rippleTile();
+                            ol.detailStrength = regenGl.rippleStrength();
+                            ol.detailRange = 60;
+                        }
+                    });
             gl.glBindVertexArray(emptyVao);
-            if (netz) brandungGl.draw(gl, vp, camera.eye, reversedZ, brandung, st, pre, sun, wetter, showClouds, sunLight(sp[0]), FOG_DISTANCE, clock.t(), camera.heading());
+            if (netz) {
+                Brandung.Stueck bs = brandung.stueck();
+                double[] m = bs.welt(bs.xWasserlinie, Brandung.BREITE / 2);
+                double[] bl = blitzJetzt ? Wetter.scale(bestrahlung(m[0], 1, m[1], preU, luft[0]), 1 / Math.PI) : null;
+                brandungGl.draw(gl, vp, camera.eye, reversedZ, brandung, st, pre, sun, wetter, showClouds, sunLight(sp[0]), FOG_DISTANCE, clock.t(), camera.heading(), bl);
+            }
             if (meer.check.isEmpty() && frame > 30) meer.check = meer.oceanGl.selfCheck(gl, meer.ocean);
             gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
             gl.glViewport(0, 0, w, h);
@@ -499,7 +660,39 @@ public final class Renderer implements GLEventListener {
         }
         mark(gl, 5);
 
-        // 6 Nachbearbeitung
+        // 6 Blitz und Regen (seit 18b): Tiefe kopieren; die Kanäle mit Tiefentest (die Szene verdeckt sie), der Regen,
+        // dann das Leuchten der Luft um die Kanäle bis zur Szene
+        if (blitzJetzt || regenJetzt) {
+            gl.glCopyImageSubData(depthTex, GL.GL_TEXTURE_2D, 0, 0, 0, 0, depthCopyTex, GL.GL_TEXTURE_2D, 0, 0, 0, 0, w, h, 1);
+            gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+            gl.glViewport(0, 0, w, h);
+        }
+        LightningGl.View lv = blitzJetzt ? blitzView(vp, inv, w, h, preU, luft, decke) : null;
+        if (blitzJetzt) {
+            gl.glEnable(GL.GL_DEPTH_TEST);
+            lv.depthTest = true;
+            blitzGl.drawChannels(gl, lv);
+            gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+            gl.glViewport(0, 0, w, h);
+            gl.glBindVertexArray(emptyVao);
+        }
+        if (regenJetzt) {
+            zeichneRegen(gl, st, vp, inv, w, h, pre, preU, luft[0], blitzJetzt);
+            gl.glBindVertexArray(emptyVao);
+        }
+        if (blitzJetzt) {
+            gl.glDisable(GL.GL_DEPTH_TEST);
+            lv.depthTest = false;
+            lv.depthTexture = depthCopyTex;
+            blitzGl.drawGlow(gl, lv);
+            gl.glBindVertexArray(emptyVao);
+        }
+        gl.glDisable(GL.GL_DEPTH_TEST);
+        gl.glDisable(GL.GL_BLEND);
+        gl.glDepthMask(true);
+        mark(gl, 6);
+
+        // 7 Nachbearbeitung
         gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, defaultFbo);
         gl.glViewport(0, 0, surfW, surfH);
         post.use(gl);
@@ -510,9 +703,9 @@ public final class Renderer implements GLEventListener {
         post.set(gl, "uScotopic", (float) (frameSky ? Wetter.scotopic(st) : 0));
         gl.glBindVertexArray(emptyVao);
         gl.glDrawArrays(GL.GL_TRIANGLES, 0, 3);
-        mark(gl, 6);
+        mark(gl, 7);
 
-        // 7 HUD
+        // 8 HUD
         gl.glFlush();
         if (showHud) {
             hud.refresh(gl, 250, this::paintHud, frozen);
@@ -520,7 +713,168 @@ public final class Renderer implements GLEventListener {
         }
         gl.glBindVertexArray(0);
         gl.glUseProgram(0);
-        mark(gl, 7);
+        mark(gl, 8);
+    }
+
+    // ------------------------------------------------------------------ Gewitter auf der Grafikkarte (seit 18b)
+
+    /** Auslöschung und Streuung der Luft für das Licht der Blitze (Dunst aus der Sicht, Regen am Auge), 1/m. */
+    double[] luft(Sky.State st) {
+        // die Sicht der Stufe meint den Regen mit; für das Licht der Blitze zählt der Dunst höchstens wie bei 20 km Sicht
+        double haze = st != null ? 3.912 / (Math.max(20, st.visibilityKm) * 1000) : 1e-4;
+        double[] e = camera.eye;
+        // der Regen steht in Schauern: auf dem Weg zu einem fernen Blitz im Mittel nur auf einem Teil (0,15) [G]
+        double r = regenOk && gewitter.regen.rate > 0 ? gewitter.regen.scatter(e[0], e[1], e[2]) * 3e-3 * 0.15 : 0;
+        // das Leuchten um die Kanäle: der Regen streut vor allem nach vorn, zum Auge hin weniger [G]
+        // und nur ein Drittel des Dunsts leuchtet sichtbar um den Kanal (das Paket rechnet mit klarer Luft) [G]
+        return new double[]{haze + r, haze * 0.3 + r * 0.2};
+    }
+
+    /** Farbe des Blitzlichts auf der Szene: BOLT_GLOW aus TH_PALETTE zur Hälfte (F48 A). */
+    double[] blitzTon() {
+        double[] f = gewitter.farbe(PaletteRole.BOLT_GLOW);
+        return new double[]{0.5 + 0.5 * f[0], 0.5 + 0.5 * f[1], 0.5 + 0.5 * f[2]};
+    }
+
+    /** Uniforms von lightning.glsl (Lichtpunkte vorbelichtet, in Einheiten der Szene, getönt); ohne Blitz: keine Lichter. */
+    private void blitzBinden(GL4 gl, Shader sh, double preU, double sigma, boolean an) {
+        int n = an ? Math.min(8, blitzGl.lightCount()) : 0;
+        float[] pos = new float[32], rgb = new float[32];
+        double[] ton = blitzTon();
+        for (int i = 0; i < n; i++) {
+            double[] lp = blitzGl.lightPos(i), lr = blitzGl.lightRgb(i);
+            for (int k = 0; k < 4; k++) pos[i * 4 + k] = (float) lp[k];
+            for (int k = 0; k < 3; k++) rgb[i * 4 + k] = (float) (lr[k] * preU * ton[k]);
+        }
+        sh.set(gl, "ltgCount", n);
+        gl.glUniform4fv(sh.loc(gl, "ltgPos"), 8, pos, 0);
+        gl.glUniform4fv(sh.loc(gl, "ltgRgb"), 8, rgb, 0);
+        sh.set(gl, "ltgSigma", (float) sigma);
+    }
+
+    /** Bestrahlung von oben am Ort (vorbelichtet, Einheiten der Szene) durch alle Lichtpunkte der Blitze. */
+    double[] bestrahlung(double x, double y, double z, double preU, double sigma) {
+        double[] e = new double[3], ton = blitzTon();
+        int n = blitzGl.lightCount();
+        for (int i = 0; i < n; i++) {
+            double[] lp = blitzGl.lightPos(i), lr = blitzGl.lightRgb(i);
+            double dx = lp[0] - x, dy = lp[1] - y, dz = lp[2] - z, d2 = dx * dx + dy * dy + dz * dz, d = Math.sqrt(d2 + 1);
+            double f = Math.max(0, dy / d) * Math.exp(-sigma * d) / (d2 + lp[3] * lp[3]) * preU;
+            for (int k = 0; k < 3; k++) e[k] += lr[k] * ton[k] * f;
+        }
+        return e;
+    }
+
+    /** Lichtpunkte in die Wolken: die der Blitze (höchstens drei) und der Glutkern (F50 A), vorbelichtet. */
+    private void inDieWolken(CloudGl.Light cl, double preU, boolean blitz) {
+        int n = 0;
+        if (blitz) {
+            int m = Math.min(2, blitzGl.cloudLightCount());
+            for (int i = 0; i < m; i++, n++) {
+                double[] c = blitzGl.cloudLight(i);
+                for (int k = 0; k < 3; k++) {
+                    cl.flashPos[n * 4 + k] = (float) c[k];
+                    cl.flashRgb[n * 4 + k] = (float) (c[3] * Lightning.CHANNEL_RGB[k] * preU);
+                }
+            }
+        }
+        // der Glutkern als zwei Punkte quer zum Blick (±0,9 km): ein breites Glimmen statt eines Flecks
+        double[] g = gewitter.glutOrt, gr = gewitter.glutRgb;
+        if (gr[0] + gr[1] + gr[2] > 0) {
+            for (int q = -1; q <= 1; q += 2) {
+                cl.flashPos[n * 4] = (float) (g[0] + q * 900 * Site.RX);
+                cl.flashPos[n * 4 + 1] = (float) (g[1] - 150 * q);
+                cl.flashPos[n * 4 + 2] = (float) (g[2] + q * 900 * Site.RZ);
+                for (int k = 0; k < 3; k++) cl.flashRgb[n * 4 + k] = (float) (gr[k] * preU * 0.6);
+                n++;
+            }
+        }
+        cl.flashCount = n;
+    }
+
+    /** Die Lichtpunkte der Blitze auf Wasser und Schaum (bis acht), getönt. */
+    private void aufsMeer(com.dan.ocean.gl.OceanGl.Light ol, double preU, double[] luft, boolean an) {
+        if (!an) return;
+        int n = Math.min(8, blitzGl.lightCount());
+        double[] ton = blitzTon();
+        ol.flashCount = n;
+        for (int i = 0; i < n; i++) {
+            double[] lp = blitzGl.lightPos(i), lr = blitzGl.lightRgb(i);
+            for (int k = 0; k < 4; k++) ol.flashPos[i * 4 + k] = (float) lp[k];
+            for (int k = 0; k < 3; k++) ol.flashRgb[i * 4 + k] = (float) (lr[k] * preU * ton[k]);
+        }
+        if (ol.pointSigma <= 0) ol.pointSigma = luft[0];
+    }
+
+    private LightningGl.View blitzView(float[] vp, float[] inv, int w, int h, double preU, double[] luft, double decke) {
+        LightningGl.View v = new LightningGl.View();
+        v.viewProj = vp;
+        v.invViewProj = inv;
+        v.eye = camera.eye.clone();
+        v.reversedZ = reversedZ;
+        v.width = w;
+        v.height = h;
+        v.fovyDeg = fovy();
+        v.targetFbo = hdrFbo;
+        v.preExposure = preU;
+        v.extinction = luft[0];
+        v.scatter = luft[1];
+        v.ceiling = decke;
+        return v;
+    }
+
+    /**
+     * Der Regen (aus Lighthouse Phase 7): Sonne, Mond und Himmel vorbelichtet, unter der Wolke gedämpft; im Blitz
+     * nimmt das stärkste Blitzlicht den Platz des Monds ein.
+     */
+    private void zeichneRegen(GL4 gl, Sky.State st, float[] vp, float[] inv, int w, int h, double pre, double preU, double sigma, boolean blitz) {
+        gl.glBindFramebuffer(GL.GL_FRAMEBUFFER, hdrFbo);
+        gl.glViewport(0, 0, w, h);
+        RainGl.View v = new RainGl.View();
+        v.viewProj = vp;
+        v.invViewProj = inv;
+        v.eye = camera.eye.clone();
+        v.forward = camera.fwd.clone();
+        v.reversedZ = reversedZ;
+        v.near = NEAR;
+        v.far = FAR;
+        v.fovyDeg = fovy();
+        v.width = w;
+        v.height = h;
+        v.depthTexture = depthCopyTex;
+        RainGl.Light l = new RainGl.Light();
+        if (st != null) {
+            double under = wetter.cloudsOk && showClouds ? Math.min(1, wetter.clouds.type.overcastBrightness * 1.6) : 1;
+            double a = Math.toRadians(camera.heading());
+            l.sunDir = st.sunDir;
+            l.sunColor = Wetter.scale(st.sunColor, pre * cloudShade);
+            l.moonDir = st.moonDir;
+            l.moonColor = Wetter.scale(st.moonColor, pre * cloudShade);
+            l.skyTop = Wetter.scale(st.skyIrradiance, pre / Math.PI * under);
+            l.skyHorizon = Wetter.scale(st.radiance(new double[]{Math.sin(a), 0.03, -Math.cos(a)}), pre);
+            l.fogDistance = Wetter.fogDistance(st);
+        }
+        if (blitz) {
+            double[] e = camera.eye, best = null, tot = new double[3];
+            double bestL = 0;
+            double[] ton = blitzTon();
+            for (int i = 0; i < blitzGl.lightCount(); i++) {
+                double[] p = blitzGl.lightPos(i), c = blitzGl.lightRgb(i);
+                double dx = p[0] - e[0], dy = p[1] - e[1], dz = p[2] - e[2], d2 = dx * dx + dy * dy + dz * dz + p[3] * p[3], d = Math.sqrt(dx * dx + dy * dy + dz * dz + 1);
+                double el = (0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]) / d2 * Math.exp(-sigma * d);
+                for (int k = 0; k < 3; k++) tot[k] += c[k] * ton[k] / d2 * Math.exp(-sigma * d) * preU;
+                if (el > bestL) { bestL = el; best = new double[]{dx / d, dy / d, dz / d}; }
+            }
+            double lm = 0.2126 * l.moonColor[0] + 0.7152 * l.moonColor[1] + 0.0722 * l.moonColor[2];
+            if (best != null && 0.2126 * tot[0] + 0.7152 * tot[1] + 0.0722 * tot[2] > lm) {
+                l.moonDir = best;
+                l.moonColor = tot;
+            }
+        }
+        gl.glDepthFunc(reversedZ ? GL.GL_GREATER : GL.GL_LESS);
+        regenGl.draw(gl, v, l, 1);
+        gl.glDisable(GL.GL_BLEND);
+        gl.glDepthMask(true);
     }
 
     private void cloudShadow(GL4 gl, Shader s, boolean cloudsNow) {
@@ -580,6 +934,12 @@ public final class Renderer implements GLEventListener {
         gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
         gl.glBindTexture(GL.GL_TEXTURE_2D, 0);
         hdrFbo = Gpu.fbo(gl, hdrTex, depthTex);
+        Gpu.deleteTextures(gl, depthCopyTex);
+        depthCopyTex = Gpu.texture(gl, w, h, GL4.GL_DEPTH_COMPONENT32F, false);
+        gl.glBindTexture(GL.GL_TEXTURE_2D, depthCopyTex);
+        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MIN_FILTER, GL.GL_NEAREST);
+        gl.glTexParameteri(GL.GL_TEXTURE_2D, GL.GL_TEXTURE_MAG_FILTER, GL.GL_NEAREST);
+        gl.glBindTexture(GL.GL_TEXTURE_2D, 0);
         hdrColorFbo = Gpu.fbo(gl, hdrTex, 0);
         hdrW = w;
         hdrH = h;
@@ -682,6 +1042,7 @@ public final class Renderer implements GLEventListener {
         l.add(passTimes());
         double[] sp = clock.sun();
         l.add(String.format(Locale.GERMAN, "%s · Sonne %.1f° aus %03.0f° · %s", clock.label(), sp[0], sp[1], wiring.mood.getLabel()));
+        if (!gewitter.zuletzt.isEmpty()) l.add("Zuletzt " + gewitter.zuletzt);
         l.add(cameraLine() + " · H: volles HUD");
         if (System.currentTimeMillis() < meldungUntil) l.add(meldung);
         if (error != null) l.add("!" + error.split("\n")[0]);
@@ -706,6 +1067,10 @@ public final class Renderer implements GLEventListener {
                 wiring.zeile(),
                 meer.describe(),
                 brandung.meldung,
+                (blitzOk ? "" : "!") + gewitter.zeile() + (blitzCheck.isEmpty() ? "" : " · " + blitzCheck),
+                (regenOk ? "" : "!") + gewitter.regenZeile() + (regenOk && gewitter.regen.rate > 0 ? " · " + regenGl.info() : "") + (regenCheck.isEmpty() ? "" : " · " + regenCheck)
+                        + String.format(Locale.GERMAN, " · Sand nass %.0f %%", nass * 100),
+                klang.describe(),
                 bauwerke.describe(),
                 Gelaende.describe(),
                 cameraLine(),
@@ -771,11 +1136,14 @@ public final class Renderer implements GLEventListener {
         wetter.dispose(gl);
         meer.dispose(gl);
         brandungGl.dispose(gl);
+        if (blitzOk) blitzGl.dispose(gl);
+        if (regenOk) regenGl.dispose(gl);
+        klang.dispose();
         bautenGl.dispose(gl);
         gelaendeGl.dispose(gl);
         belichtung.dispose(gl);
         Gpu.deleteFbos(gl, hdrFbo, hdrColorFbo);
-        Gpu.deleteTextures(gl, hdrTex, depthTex);
+        Gpu.deleteTextures(gl, hdrTex, depthTex, depthCopyTex);
         if (emptyVao != 0) gl.glDeleteVertexArrays(1, new int[]{emptyVao}, 0);
         for (int[] s : stamp) if (s[0] != 0) gl.glDeleteQueries(MARKS, s, 0);
         ready = false;

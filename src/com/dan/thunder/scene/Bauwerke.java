@@ -18,6 +18,8 @@ public final class Bauwerke {
     public final Netz netz = new Netz();
     /** Laterne des Leuchtturms (x, Brennpunkt y, z) und der Seebrücke. */
     public final double[] laterneTurm, laterneBruecke;
+    /** Pfähle der Seebrücke im Wasser {x, z} (für den Klang: die Wellen glucksen daran). */
+    public final java.util.List<double[]> pfaehle = new java.util.ArrayList<>();
     /** Farben der Körbe als Kennzahlen für die Streifen in bauten.frag (Blau, Grün, Blau, Rot). */
     public static final String[] KORB_FARBEN = {"#3C64BE", "#2E8B57", "#3C64BE", "#C8102E"};
 
@@ -96,6 +98,7 @@ public final class Bauwerke {
                 double px = x0 + qx * s * (w - 0.3), pz = z0 + qz * s * (w - 0.3);
                 double grund = Gelaende.height(px, pz);
                 if (y0 - 0.3 - grund > 0.4) netz.balken(new double[]{px, grund - 0.3, pz}, new double[]{px, y0 - 0.3, pz}, 0.32, 0.32, pfahl);
+                if (grund < -0.2 && s < 0) pfaehle.add(new double[]{px, pz});
             }
             // Geländer: Pfosten und Handlauf beidseits
             for (double s : new double[]{-0.5, 0.5}) {

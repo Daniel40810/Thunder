@@ -63,7 +63,7 @@ final class BrandungGl {
     }
 
     void draw(GL4 gl, float[] vp, double[] eye, boolean reversedZ, Brandung b, Sky.State st, double pre, double[] sun, Wetter wetter,
-              boolean clouds, double[] sunFallback, double fogFallback, double time, double blickGrad) {
+              boolean clouds, double[] sunFallback, double fogFallback, double time, double blickGrad, double[] blitz) {
         Brandung.Stueck s = ok ? b.stueck() : null;
         if (s == null) return;
         breakerGl.upload(gl, 0, s.netz);
@@ -73,6 +73,11 @@ final class BrandungGl {
         v.eye = new double[]{le[0], eye[1], le[1]};
         v.reversedZ = reversedZ;
         BreakerGl.Light l = licht(st, pre, sun, wetter, clouds, sunFallback, fogFallback, blickGrad);
+        // seit 18b: das Licht eines Blitzes (Bestrahlung von oben / π) hellt Schaum und Wasser auf wie der Himmel
+        if (blitz != null) for (int k = 0; k < 3; k++) {
+            l.skyTop[k] += blitz[k];
+            l.skyHorizon[k] += 0.5 * blitz[k];
+        }
         l.sunDir = new double[]{sun[0] * Brandung.SX + sun[2] * Brandung.SZ, sun[1], sun[0] * Brandung.AX + sun[2] * Brandung.AZ};
         breakerGl.draw(gl, 0, v, l, time, 99);
     }

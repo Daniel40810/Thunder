@@ -33,9 +33,10 @@ import java.util.Arrays;
  * {@code --offline} ohne Datenbank, {@code -Dthunder.gljpanel=true} zeichnet über ein GLJPanel (Rückfall), {@code --nacht} mit Nachtstimmung. Die Bedienleiste bleibt: Stufe, Abend und Nacht,
  * Regen, Ton, Sanfte Blitze, Theme. Tasten 1 bis 5: die Ansichten, Pos1 der Hauptblick, H das HUD, F12 ein Foto.
  * <p>
- * Stand Phase 18a: die Szene (Strand, Düne, Meer mit Brandung, Himmel, Wolken, Leuchtturm, Seebrücke, Strandkörbe),
- * Stufe und Stimmung wirken auf Wind, See, Wolken und Uhr. Blitze, Glutkern, Regen und Klang folgen in 18b, das
- * Blitzprotokoll und die Datenbank in 18c.
+ * Stand Phase 18b: die Szene (Strand, Düne, Meer mit Brandung, Himmel, Wolken, Leuchtturm, Seebrücke, Strandkörbe)
+ * mit dem Gewitter: die Regie des 2D-Thunder löst die Blitze aus ({@code lightning}), der Glutkern atmet in der Wolke,
+ * es regnet ({@code rain}), der Klang kommt aus {@code soundscape}. Stufe und Stimmung wirken auf Wind, See, Wolken,
+ * Blitze, Regen und Uhr. Das Blitzprotokoll und die Datenbank folgen in 18c.
  */
 public final class ThunderApp implements ControlBar.Actions {
 
@@ -46,7 +47,6 @@ public final class ThunderApp implements ControlBar.Actions {
     private final FTheme.ThemeListener themeListener = t -> applyFrameTheme();
     private DbConfig config;
     private String sourceText = "";
-    private volatile boolean rain = true, soft;
 
     private ThunderApp(Mood mood) {
         renderer = new Renderer(new SceneClock());
@@ -78,7 +78,7 @@ public final class ThunderApp implements ControlBar.Actions {
         renderer.setErrorListener(msg -> SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(frame, msg, "Thunder", JOptionPane.WARNING_MESSAGE)));
         frame.addWindowListener(new WindowAdapter() {
             @Override
-            public void windowClosing(WindowEvent e) { view.stop(); }
+            public void windowClosing(WindowEvent e) { view.stop(); renderer.klang.dispose(); }
         });
         frame.setLocationRelativeTo(null);
         frame.setVisible(true);
@@ -141,6 +141,7 @@ public final class ThunderApp implements ControlBar.Actions {
                 try {
                     ThunderData data = get();
                     StormLevel start = data.levels().stream().filter(l -> l.code().equals("STORM")).findFirst().orElse(data.levels().get(0));
+                    renderer.setDaten(data);
                     renderer.setLevel(start);
                     bar.setData(data, start);
                     sourceText = data.source() + " · " + data.levels().size() + " Stufen";
@@ -161,16 +162,17 @@ public final class ThunderApp implements ControlBar.Actions {
     public void moodChanged(Mood mood) { renderer.setMood(mood, false); }
 
     @Override
-    public void rainChanged(boolean on) { rain = on; }   // Regen ab Phase 18b
+    public void rainChanged(boolean on) { renderer.gewitter.regenAn = on; }
 
     @Override
     public boolean soundChanged(boolean on) {
-        if (on) renderer.hudMeldung("Ton kommt mit Phase 18b (soundscape)");
-        return !on;
+        boolean laeuft = renderer.klang.setOn(on);
+        if (on && !laeuft) renderer.hudMeldung("Kein Ton: " + renderer.klang.note.replace("!", ""));
+        return laeuft == on;
     }
 
     @Override
-    public void softChanged(boolean on) { soft = on; }   // ab Phase 18b: dämpft das Licht der Blitze
+    public void softChanged(boolean on) { renderer.gewitter.setSanft(on); }
 
     private static String shortReason(Exception ex) {
         String m = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();

@@ -3,6 +3,7 @@
 // Bauten: Sonne und Mond vorbelichtet, Himmelslicht, Wolkenschatten, Dunst. Nasse Flächen spiegeln den Himmel nach
 // Fresnel. Die Anteile der Arten kommen je Ecke (Gelaende.java): nasser Sand, Düne, Hinterland, Seegrund, Rest Sand.
 #include "common.glsl"
+#include "/com/dan/lightning/gl/lightning.glsl"
 in vec3 vWorld;
 in vec3 vNormal;
 in vec4 vArt;
@@ -59,6 +60,8 @@ void main() {
         vec3 amb = vec3(0.30, 0.38, 0.52) * B / 0.32 * (0.55 + 0.45 * n.y);
         col = alb * (sunLight() * ndl * cloud + amb);
     }
+    // seit Phase 18b: das Licht der Blitze (lightning.glsl, Lichtpunkte am Kanal und unter der Wolke)
+    col += alb * ltgIrradiance(vWorld, n) / PI;
     if (wet > 0.0) {
         vec3 r = reflect(-V, n);
         float F = 0.02 + 0.98 * pow(1.0 - max(dot(n, V), 0.0), 5.0);

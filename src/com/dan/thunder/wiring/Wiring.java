@@ -17,7 +17,7 @@ import java.util.Locale;
  * Unwetter 11 m/s). Ablandig: die Windsee draußen bleibt kurz (Fetch 2 km).</li>
  * <li><b>See am Strand</b>: auflandige Restsee aus Nordost wie {@code surf.ostsee()}: H_s 0,35 + 0,55·WIND m, T_p 3,6 +
  * 1,2·WIND s.</li>
- * <li><b>Wolken</b>: Wetterleuchten 5/8 Cumulonimbus in der Ferne, Gewitter 7/8, Unwetter 8/8; Sicht 30, 16, 8 km.</li>
+ * <li><b>Wolken</b>: Wetterleuchten 5/8 Cumulonimbus in der Ferne, Gewitter 6/8 (seit 18b: zwischen den Zellen scheint die Dämmerung durch wie in den Bildern), Unwetter 8/8; Sicht 30, 16, 8 km.</li>
  * </ul>
  * Ohne Stufe (vor dem Laden) gilt „Gewitter“.
  */
@@ -39,7 +39,7 @@ public final class Wiring {
     public double seaTp() { return 3.6 + 1.2 * wind(); }
     public double seaFromDeg() { return 45; }
 
-    public double oktas() { double w = wind(); return w < 0.5 ? 5 : w < 0.9 ? 7 : 8; }
+    public double oktas() { double w = wind(); return w < 0.5 ? 5 : w < 0.9 ? 6 : 8; }
     public double visibilityKm() { double w = wind(); return w < 0.5 ? 30 : w < 0.9 ? 16 : 8; }
     public CloudType cloudType() { return CloudType.CUMULONIMBUS; }
 

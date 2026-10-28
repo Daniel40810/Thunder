@@ -29,10 +29,28 @@ Bedienung bleiben; das Schema bleibt DEMO.
   H schaltet das HUD, F12 macht ein Foto.
 - **Statusbild:** `ant statusbild` (`tools.Statusbild`) legt die fünf Bilder aus `docs/` über denselben Blick in 3D.
 
-Blitze, Glutkern, Regen und Klang kommen in 18b. Bedienung, Blitzprotokoll und Datenbank kommen in 18c. Bis dahin
-liegen die alten Pakete `render` und `audio` noch im Projekt, die App nutzt sie nicht mehr.
+**Stand 18b, das Gewitter:**
 
-![Stand 18a](docs/status/Status_Phase18a_claude.png)
+- **Regie:** Der `StormDirector` aus dem 2D-Thunder entscheidet weiter nach `TH_STORM_LEVEL`, wann ein Blitz kommt,
+  welcher Art und wie weit weg. `scene.Gewitter` setzt das in den Raum: Die Stelle im Bild wird eine Peilung im
+  Blickfeld des Hauptblicks.
+- **Blitze:** `lightning` baut und zeichnet sie. Erdblitze schlagen in See und Strand oder in den Leuchtturm. In der
+  Wolke gibt es Wolken- und Spinnenblitze, weit draußen Wetterleuchten. Die Krone besteht aus 4 bis 7 Spinnenblitzen
+  rings um den Glutkern. Gelände, Bauten, See, Brecher, Regen und Wolken bekommen ihr Licht, und die Belichtung gibt im
+  Blitz nach. „Sanfte Blitze“ nimmt zwei Drittel des Lichts und das Flackern.
+- **Glutkern:** ein schwaches, atmendes Licht in einer Zelle der Gewitterwolke, Farbe EMBER aus `TH_PALETTE`, Stärke
+  EMBER der Stufe. Er leuchtet über die Lichtpunkte der Wolke, `cloud` bleibt unverändert.
+- **Regen:** `rain` mit Vorhängen, Streifen, Krönchen und Ringen auf der See: Wetterleuchten 1,4 mm/h, Gewitter 10,
+  Unwetter 30. Der Sand wird nass.
+- **Laternen:** Leuchtturm und Seebrücke brennen in der Farbe LAMP.
+- **Klang:** `soundscape` statt des alten Synthesizers (`gl.Klang`): Donner aus dem Kanal jedes Blitzes mit Laufzeit,
+  Regen, Wind, Strandhafer, die ferne Brandung entlang der Wasserlinie, einzelne Brecher und Schwälle vor dem
+  Hauptblick, Wellen an den Pfählen der Seebrücke.
+- Die alten Pakete `render` und `audio` und der `ScreenshotHarness` sind entfernt.
+
+Bedienung, Blitzprotokoll und Datenbank (`sql/04_th_3d.sql`) kommen in 18c.
+
+![Stand 18b](docs/status/Status_Phase18b_claude.png)
 
 ## Start
 

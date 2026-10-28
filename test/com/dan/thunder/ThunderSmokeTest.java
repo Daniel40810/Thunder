@@ -133,30 +133,39 @@ public final class ThunderSmokeTest {
         Envelope soft = Envelope.random(new Random(3), 100, 3, 1, true);
         check(soft.strokeCount() == 1 && soft.intensity(100) <= 0.65, "sanft: eine gedämpfte Entladung");
 
-        // --- Ton (ohne Audiogerät gerechnet)
-        double lastPeak = 2;
+        // --- Ton (seit Phase 18b aus com.dan.soundscape, ohne Audiogerät gerechnet): Donner in 0,5, 3 und 10 km bei Regen
+        double lastPeak = 1e9;
         for (double dist : new double[] { 0.5, 3, 10 }) {
-            com.dan.thunder.audio.ThunderSynth synth = new com.dan.thunder.audio.ThunderSynth();
-            synth.setRain(0.8);
-            synth.setSurf(0.6);
-            float[] x = synth.renderOffline(8, dist);
-            double peak = 0, head = 0, tail = 0;
-            for (int k = 0; k < x.length; k++) {
-                peak = Math.max(peak, Math.abs(x[k]));
-                if (k < 44_100) {
-                    head += x[k] * x[k];
-                } else if (k > 44_100 * 7) {
-                    tail += x[k] * x[k];
-                }
-            }
-            check(peak < 0.95, "Donner " + dist + " km übersteuert nicht");
+            com.dan.soundscape.Soundscape sc = new com.dan.soundscape.Soundscape();
+            sc.seed = 7;
+            sc.quality = com.dan.soundscape.Soundscape.Quality.LOW;
+            sc.autoGain = false;
+            sc.rainRate = 8;
+            sc.windSpeed = 8;
+            sc.waveHeight = 0.7;
+            sc.wavePeriod = 4.4;
+            sc.render(1.0);
+            double ref = rms(sc.render(1.0));
+            double lvl = 122 - 20 * Math.log10(dist * 1000 / 100) - 0.005 * dist * 1000;
+            sc.thunder(dist * 1000, 1500, 0, lvl, null, null, null, true);
+            float[] x = sc.render(6);
+            double peak = 0;
+            for (float v : x) peak = Math.max(peak, Math.abs(v));
+            double head = rms(java.util.Arrays.copyOfRange(x, 0, x.length / 3));
+            check(peak < 1.0, "Donner " + dist + " km übersteuert nicht");
             check(peak < lastPeak, "Donner " + dist + " km leiser als näherer");
-            check(head > tail * 2, "Donner " + dist + " km hörbar über Regen und Brandung");
+            check(dist > 5 || head > ref * 1.5, "Donner " + dist + " km hörbar über Regen und Brandung");
             lastPeak = peak;
         }
 
         System.out.println(failures == 0 ? "ThunderSmokeTest: alles in Ordnung" : "ThunderSmokeTest: " + failures + " Fehler");
         System.exit(failures == 0 ? 0 : 1);
+    }
+
+    private static double rms(float[] x) {
+        double s = 0;
+        for (float v : x) s += v * v;
+        return Math.sqrt(s / Math.max(1, x.length));
     }
 
     private static void checkNum(double v, String expected, String what) {

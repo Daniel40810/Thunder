@@ -3,6 +3,7 @@
 // Licht wie das Gelände: Sonne und Mond vorbelichtet, Himmelslicht (uSkyAmb), Wolkenschatten; Glas spiegelt den Himmel
 // nach Fresnel; Fenster der Häuser leuchten nachts zum Teil (uWarm), die Laternen nach dem Leuchtfeuer (uLamp*).
 #include "common.glsl"
+#include "/com/dan/lightning/gl/lightning.glsl"
 in vec3 vWorld;
 in vec3 vNormal;
 flat in uint vAttr;
@@ -228,6 +229,8 @@ void main() {
         float d2 = max(dot(Ls, Ls), 1.0);
         col += alb * uSpotI * max(dot(n, Ls * inversesqrt(d2)), 0.0) / d2 / PI;
     }
+    // seit Phase 18b: das Licht der Blitze (lightning.glsl) mit Glanz
+    col += alb * ltgIrradiance(vWorld, n) / PI + ltgSpecular(vWorld, n, V, 0.4) * (0.04 + 0.5 * glass);
     col += emit;
     col = aerial(col, -V, dist);
     frag = vec4(col, 1.0);
