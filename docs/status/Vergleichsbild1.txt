@@ -1,0 +1,175 @@
+
+C:\Users\Dan40810\Documents\NetBeansProjects\Thunder>ant vergleichsbild -Dstand=zwischen -Drueckfluss=aus
+Buildfile: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build.xml
+
+-pre-init:
+
+-init-private:
+
+-pre-init-libraries:
+
+-init-private-libraries:
+
+-init-libraries:
+
+-init-user:
+
+-init-project:
+
+-init-macrodef-property:
+
+-init-modules-supported:
+
+-do-init:
+
+-post-init:
+
+-init-check:
+
+-init-ap-cmdline-properties:
+
+-init-macrodef-modulename:
+
+-init-source-module-properties:
+
+-init-macrodef-javac-with-module:
+
+-init-macrodef-javac-with-processors:
+
+-init-macrodef-javac-without-processors:
+
+-init-macrodef-javac:
+
+-init-macrodef-test-impl:
+
+-init-macrodef-junit-init:
+
+-init-test-properties:
+
+-init-macrodef-junit-prototype-with-module:
+
+-init-macrodef-junit-prototype-without-module:
+
+-init-macrodef-junit-single:
+
+-init-macrodef-junit-batch:
+
+-init-macrodef-junit:
+
+-init-macrodef-junit-impl:
+
+-init-macrodef-testng:
+
+-init-macrodef-testng-impl:
+
+-init-macrodef-test:
+
+-init-macrodef-junit-debug-impl:
+
+-init-macrodef-test-debug-junit:
+
+-init-macrodef-testng-debug:
+
+-init-macrodef-testng-debug-impl:
+
+-init-macrodef-test-debug-testng:
+
+-init-macrodef-test-debug:
+
+-init-debug-args:
+
+-init-macrodef-nbjpda:
+
+-init-macrodef-debug:
+
+-init-macrodef-java-with-module:
+
+-init-macrodef-java-with-unnamed-module:
+
+-init-macrodef-java-without-module:
+
+-init-macrodef-java:
+
+-init-presetdef-jar:
+
+-init-ap-cmdline-supported:
+
+-init-ap-cmdline:
+
+init:
+
+-deps-jar-init:
+   [delete] Deleting: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\built-jar.properties
+
+deps-jar:
+
+-warn-already-built-jar:
+[propertyfile] Updating property file: C:\Users\Dan40810\Documents\NetBeansProjects\Thunder\build\built-jar.properties
+
+-check-automatic-build:
+
+-clean-after-automatic-build:
+
+-verify-automatic-build:
+
+-pre-pre-compile:
+
+-pre-compile:
+
+-copy-persistence-xml:
+
+-compile-depend:
+
+-do-compile:
+
+check-packages:
+     [exec] check-packages: Renderer.jar mit 50 Packages (Quelle: Projekt Renderer)
+     [exec]   Package        Klassen  README  Java
+     [exec]   sky            44       ok      21
+     [exec]   cloud          16       ok      21
+     [exec]   ocean          27       ok      21
+     [exec]   surf           48       ok      21
+     [exec]   lightning      24       ok      21
+     [exec]   rain           12       ok      21
+     [exec]   soundscape     62       ok      21
+     [exec]   beacon         28       ok      21
+     [exec]   sail           33       ok      21
+     [exec]   cloth          16       ok      21
+     [exec] check-packages: alle 10 gebrauchten Packages in Renderer.jar, dazu die Brecher aus surf, die See, Himmel und Wolken.
+
+-post-compile:
+
+compile:
+
+vergleichsbild:
+     [java] Thunder: ATI Technologies Inc. · AMD Radeon(TM) Graphics · 4.6.0 Core Profile Context 26.10.1.261008
+     [java] Thunder: Compute 4.3: in Ordnung (64×64, 0,010 ms, bis 1024 Fäden, 64 KiB geteilt)
+     [java] Thunder: Gelände gerechnet: Netz 400² Ecken über 12 km, Grund 1536² zu 2,0 m, Wasserlinie 41 m vor dem Blick, Düne 8,0 m · 318.402 Dreiecke
+     [java] Thunder: Himmel Tabellen 256×64, 32², 256×128 · 8920 Sterne · 5 Planeten · 27 Figuren
+     [java] Thunder: Wolken Rauschen 128³ + 32³, Karte 512², Schatten 256² über 24 km
+     [java] Thunder: Meer
+     [java] Thunder: Blitze (lightning) bereit
+     [java] Thunder: Regen Streifen, Vorhänge, Krönchen und Ringkarte aus Nummer, Zeit und Wind
+     [java] Thunder: Leuchtturm, Seebrücke und 4 Strandkörbe: 6.690 Dreiecke
+     [java] Thunder: Segler und Flaggen bereit (sail, cloth aus Renderer.jar)
+     [java] 0 · Abend, Gewitter, zwischen zwei Blitzen · Gewitter · Abend · Wind 8,2 m/s aus 225° · See am Strand H_s 0,71 m, T_p 4,4 s aus 045° · 6/8 Cumulonimbus · Sicht 16 km · Brandung 48 Reihen auf 220 m · H_s 0,71 m, T_p 4,4 s · 10 Wellen · gebrochen 2 Schwall, 2 Sturz, 0 Reflexion · Auflauf R2 % 0,50 m · Rechnen 0,6 ms, Netz 15,5 ms
+     [java]    Gewitter Gewitter (Regie aus) · 0 Blitze (0 Erdblitze, 0 in der Wolke, 0 Kronen, 0 Wetterleuchten), 0 jeMinute · Glutkern 1634 % · Regen trocken · 0,0 mm/h hier (bis 10,1) · Sicht im Regen frei · 0 Einschläge/m²s
+     [java]    pre 27.3 give 1.00 lf 0.00 lights 0 cloud 0 glut 7.21e+09
+     [java] 1 · Abend, Gewitter, naher Einschlag · Gewitter · Abend · Wind 8,2 m/s aus 225° · See am Strand H_s 0,71 m,T_p 4,4 s aus 045° · 6/8 Cumulonimbus · Sicht 16 km · Brandung 48 Reihen auf 220 m · H_s 0,71 m, T_p 4,4 s · 10 Wellen · gebrochen 2 Schwall, 2 Sturz, 0 Reflexion · Auflauf R2 % 0,50 m · Rechnen 0,5 ms, Netz 16,4 ms
+     [java]    Gewitter Gewitter (Regie aus) · 1 Blitze (1 Erdblitze, 0 in der Wolke, 0 Kronen, 0 Wetterleuchten), 0 jeMinute · zuletzt Erdblitz 1,4 km NO, 31 kA, 3 Schläge · Donner in 3,8 s · Glutkern 1314 % · Regen trocken · 0,0 mm/h hier (bis 10,1) · Sicht im Regen frei · 0 Einschläge/m²s
+     [java]    pre 27.3 give 1.01 lf 0.000351 lights 4 cloud 4 glut 5.80e+09
+     [java] 2 · Nacht, Unwetter, Blitzkrone · Unwetter · Nacht · Wind 11,0 m/s aus 225° · See am Strand H_s 0,90 m, T_p4,8 s aus 045° · 8/8 Cumulonimbus · Sicht 8 km · Brandung 48 Reihen auf 220 m · H_s 0,90 m, T_p 4,8 s · 8 Wellen · gebrochen 3 Schwall, 1 Sturz, 0 Reflexion · Auflauf R2 % 0,40 m · Rechnen 0,9 ms, Netz 16,0 ms
+     [java]    Gewitter Unwetter (Regie aus) · 2 Blitze (1 Erdblitze, 0 in der Wolke, 1 Kronen, 0 Wetterleuchten), 0 jeMinute · zuletzt Spinnenblitz 5,0 km NO, 11 kA, 5 Pulse · Donner in 4,2 s · Glutkern 1833 % · Regen Wolkenbruch · 30,0 mm/h hier (bis 30,0) · Sicht im Regen 1,8 km · 5.516 Einschläge/m²s
+     [java]    pre 9.51e+05 give 82.7 lf 0.000129 lights 8 cloud 4 glut 1.02e+05
+     [java] 3 · Nacht, Wetterleuchten · Wetterleuchten · Nacht · Wind 5,8 m/s aus 225° · See am Strand H_s 0,54 m, T_p 4,0 s aus 045° · 5/8 Cumulonimbus · Sicht 30 km · Brandung 48 Reihen auf 220 m · H_s 0,54 m, T_p 4,0 s · 11 Wellen · gebrochen 2 Schwall, 2 Sturz, 0 Reflexion · Auflauf R2 % 0,26 m · Rechnen 0,6 ms, Netz 15,7 ms
+     [java]    Gewitter Wetterleuchten (Regie aus) · 3 Blitze (1 Erdblitze, 1 in der Wolke, 1 Kronen, 0 Wetterleuchten), 0 je Minute · zuletzt Spinnenblitz 8,5 km NO, 40 kA, 9 Pulse · Donner in 20,8 s · Glutkern 827 % · Regen trocken · 0,0mm/h hier (bis 1,4) · Sicht im Regen frei · 0 Einschläge/m²s
+     [java]    pre 2.32e+05 give 1.48 lf 3.13e-06 lights 4 cloud 4 glut 2.42e+05
+     [java] 4 · Nacht, Folgeblitz vor der Seebrücke · Wetterleuchten · Nacht · Wind 5,8 m/s aus 225° · See am Strand H_s 0,54 m, T_p 4,0 s aus 045° · 5/8 Cumulonimbus · Sicht 30 km · Brandung 48 Reihen auf 220 m · H_s 0,54 m, T_p 4,0 s · 11 Wellen · gebrochen 2 Schwall, 2 Sturz, 0 Reflexion · Auflauf R2 % 0,26 m · Rechnen 0,7 ms, Netz 15,6 ms
+     [java]    Gewitter Wetterleuchten (Regie aus) · 4 Blitze (2 Erdblitze, 1 in der Wolke, 1 Kronen, 0 Wetterleuchten), 0 je Minute · zuletzt Erdblitz 2,6 km O, 53 kA, 3 Schläge · Donner in 5,9 s · Glutkern 989 % · Regen trocken · 0,0 mm/h hier (bis 1,4) · Sicht im Regen frei · 0 Einschläge/m²s
+     [java]    pre 2.32e+05 give 18.8 lf 0.000115 lights 4 cloud 4 glut 2.89e+05
+     [java] Bild: docs\rueckfluss\Vergleich_zwischen.png
+
+BUILD SUCCESSFUL
+Total time: 58 seconds
+
+C:\Users\Dan40810\Documents\NetBeansProjects\Thunder>
