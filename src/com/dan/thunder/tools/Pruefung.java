@@ -77,6 +77,7 @@ public final class Pruefung {
         bedienung(data);
         klang(data);
         bauten();
+        segler();
         if (!offline) datenbank();
         else say("Datenbank: übersprungen (--offline)");
 
@@ -294,6 +295,45 @@ public final class Pruefung {
     }
 
     // ------------------------------------------------------------------ 6 Bauten
+
+    /** Rückfluss aus Timmendorf (Phase 18): Segelboote aus sail, Flaggen aus cloth, je Stufe 15 Minuten. */
+    static void segler() {
+        say("Segler und Flaggen (Rückfluss aus Timmendorf, sail und cloth), je Stufe 15 Minuten");
+        double[] wind = {5.8, 8.2, 11.0};
+        String[] name = {"Wetterleuchten", "Gewitter", "Unwetter"};
+        for (int w = 0; w < wind.length; w++) {
+            com.dan.thunder.scene.Segler sg = new com.dan.thunder.scene.Segler();
+            double smin = 1e9, smax = -1e9, rmin = 1e9, rmax = -1e9, fahrt = 0, kraeng = 0;
+            int n = 0, wenden = 0;
+            boolean[] links = new boolean[sg.boote.size()], rechts = new boolean[sg.boote.size()];
+            for (int i = 0; i < 900 * 30; i++) {
+                sg.tuch = i >= 840 * 30;
+                sg.schritt(1 / 30.0, wind[w], 225, 0);
+                if (i % 30 != 0 || i < 60 * 30) continue;
+                for (int k = 0; k < sg.boote.size(); k++) {
+                    com.dan.sail.Sail.Boat b = sg.boote.get(k);
+                    double[] f = Site.rahmen(b.x, b.z);
+                    smin = Math.min(smin, f[0]); smax = Math.max(smax, f[0]);
+                    rmin = Math.min(rmin, f[1]); rmax = Math.max(rmax, f[1]);
+                    if (f[1] < com.dan.thunder.scene.Segler.R_MIN + 150) links[k] = true;
+                    if (f[1] > com.dan.thunder.scene.Segler.R_MAX - 150) rechts[k] = true;
+                    fahrt += b.speed / com.dan.sail.Sail.KN;
+                    kraeng = Math.max(kraeng, Math.abs(b.rollDeg));
+                    n++;
+                }
+            }
+            boolean hinUndHer = true;
+            for (int k = 0; k < links.length; k++) hinUndHer &= links[k] && rechts[k];
+            fahrt /= n;
+            check(smin > com.dan.thunder.scene.Gelaende.WASSERLINIE + 250 && smax < 1300 && rmin > -900 && rmax < 950 && hinUndHer && sg.kenterungen() == 0,
+                    String.format(Locale.GERMAN, "%s (%.1f m/s): drei Boote im Revier (%.0f bis %.0f m voraus, %.0f bis %.0f m quer), jedes hin und zurück, keins gekentert",
+                            name[w], wind[w], smin, smax, rmin, rmax));
+            check(fahrt > 4 && fahrt < 11 && kraeng > 2 && kraeng < 35, String.format(Locale.GERMAN, "%s: im Mittel %.1f kn bei halbem Wind, größte Krängung %.0f°", name[w], fahrt, kraeng));
+            double f0 = sg.flaggeNach(0), f1 = sg.flaggeNach(1);
+            double d0 = Math.abs(((f0 - 45) % 360 + 540) % 360 - 180), d1 = Math.abs(((f1 - 45) % 360 + 540) % 360 - 180);
+            check(d0 < 30 && d1 < 30, String.format(Locale.GERMAN, "%s: die Flaggen wehen nach %03.0f° und %03.0f° (Wind aus 225°, soll 045°)", name[w], f0, f1));
+        }
+    }
 
     static void bauten() {
         say("Bauten");

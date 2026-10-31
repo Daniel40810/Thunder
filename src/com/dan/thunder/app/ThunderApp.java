@@ -248,6 +248,9 @@ public final class ThunderApp implements ControlBar.Actions {
     @Override
     public void softChanged(boolean on) { renderer.gewitter.setSanft(on); }
 
+    @Override
+    public void seglerChanged(boolean on) { renderer.showSegler = on; }
+
     private static String shortReason(Exception ex) {
         String m = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
         m = m.replaceAll("\\s+", " ");

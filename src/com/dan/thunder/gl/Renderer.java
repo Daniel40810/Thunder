@@ -80,6 +80,13 @@ public final class Renderer implements GLEventListener {
     final BrandungGl brandungGl = new BrandungGl();
     final GelaendeGl gelaendeGl = new GelaendeGl();
     final BautenGl bautenGl = new BautenGl();
+    /** Rückfluss aus Timmendorf (Phase 18): Segelboote ({@code sail}) und Flaggen ({@code cloth}), abschaltbar. */
+    public final com.dan.thunder.scene.Segler segler = new com.dan.thunder.scene.Segler();
+    public volatile boolean showSegler = !"aus".equals(System.getProperty("rueckfluss"));
+    final com.dan.sail.gl.SailGl seglerGl = new com.dan.sail.gl.SailGl();
+    final com.dan.cloth.gl.ClothGl flaggenGl = new com.dan.cloth.gl.ClothGl();
+    boolean seglerOk;
+    String seglerInfo = "Segler: noch nicht gezeichnet";
     private final Belichtung belichtung = new Belichtung();
     /** Das Gewitter (Regie, Blitze, Glutkern, Regen) und sein Klang (seit 18b). */
     public final Gewitter gewitter = new Gewitter();
@@ -381,6 +388,16 @@ public final class Renderer implements GLEventListener {
         bautenGl.init(gl);
         bautenGl.upload(gl, BautenGl.FEST, bauwerke.netz);
         System.out.println("Thunder: " + bauwerke.describe());
+        try {
+            seglerGl.init(gl);
+            flaggenGl.init(gl);
+            flaggenGl.setCloths(gl, segler.flaggen);
+            seglerOk = true;
+            System.out.println("Thunder: Segler und Flaggen bereit (sail, cloth aus Renderer.jar)");
+        } catch (RuntimeException e) {
+            System.err.println("Thunder: Segler nicht verfügbar: " + e.getMessage());
+            seglerInfo = "!Segler: " + e.getMessage();
+        }
         belichtung.init(gl);
         lastNanos = System.nanoTime();
         statsNanos = lastNanos;
@@ -413,6 +430,7 @@ public final class Renderer implements GLEventListener {
         wetter.clouds.precipitation = gewitter.niederschlag();
         wiring.feed(meer.ocean);
         meer.ocean.step(dt);
+        if (showSegler) segler.schritt(dt, wiring.windSpeed(), wiring.windFromDeg(), nass);
         brandung.an = showBrandung && showOcean;
         if (brandung.see == null) brandung.see = (x, z) -> meer.ocean.heightAt(x, z);
         brandung.schritt(dt, wiring.seaHs(), wiring.seaTp());
@@ -796,6 +814,7 @@ public final class Renderer implements GLEventListener {
             bautenGl.draw(gl, true, false, false, false);
             gl.glBindVertexArray(emptyVao);
         }
+        if (showSegler && seglerOk) zeichneSegler(gl, st, vp, pre, preU, luft[0], blitzJetzt, sp);
         mark(gl, 3);
 
         // 4 Meer und Brecher
@@ -1006,6 +1025,72 @@ public final class Renderer implements GLEventListener {
             for (int k = 0; k < 3; k++) e[k] += lr[k] * ton[k] * f;
         }
         return e;
+    }
+
+    /**
+     * Rückfluss aus Timmendorf (Phase 18): Boote und Stangen über {@code SailGl}, Flaggen über {@code ClothGl}; Licht
+     * vorbelichtet wie in Timmendorf (Sonne und Himmel als Bestrahlung/π), dazu das Licht der Blitze am Ort der Boote.
+     */
+    private void zeichneSegler(GL4 gl, Sky.State st, float[] vp, double pre, double preU, double sigma, boolean blitz, double[] sp) {
+        double[] sunC, sky, sunDir;
+        double fog;
+        if (frameSky) {
+            sunC = Wetter.scale(st.sunColor, pre / Math.PI);
+            sky = Wetter.scale(wetter.ambient(st, showClouds), pre / Math.PI);
+            sunDir = st.sunDir;
+            fog = Wetter.fogDistance(st);
+        } else {
+            sunC = Wetter.scale(sunLight(sp[0]), 1 / Math.PI);
+            sky = new double[]{0.05, 0.06, 0.08};
+            sunDir = Sun.direction(sp[0], sp[1]);
+            fog = FOG_DISTANCE;
+        }
+        if (cloudShade < 1) sunC = Wetter.scale(sunC, cloudShade);
+        if (blitz) {
+            double[] m = new double[3];
+            for (com.dan.sail.Sail.Boat b : segler.boote) { m[0] += b.x; m[2] += b.z; }
+            m[0] /= segler.boote.size();
+            m[2] /= segler.boote.size();
+            double[] e = bestrahlung(m[0], 8, m[2], preU, sigma);
+            for (int k = 0; k < 3; k++) sky[k] += e[k] / Math.PI;
+        }
+        gl.glEnable(GL.GL_DEPTH_TEST);
+        gl.glDepthMask(true);
+        gl.glDepthFunc(reversedZ ? GL.GL_GREATER : GL.GL_LESS);
+        gl.glDisable(GL.GL_BLEND);
+        seglerGl.time = segler.zeit();
+        seglerGl.update(gl, segler.boote, b -> meer.ocean.heightAt(b.x, b.z), segler.stangenDreiecke());
+        com.dan.sail.gl.SailGl.View v = new com.dan.sail.gl.SailGl.View();
+        v.viewProj = vp;
+        v.eye = camera.eye.clone();
+        v.tonemap = false;
+        v.exposure = 1;
+        com.dan.sail.gl.SailGl.Light l = new com.dan.sail.gl.SailGl.Light();
+        l.sunDir = sunDir;
+        l.sunColor = sunC;
+        l.skyColor = sky;
+        l.groundColor = new double[]{sky[0] * 0.35, sky[1] * 0.4, sky[2] * 0.45};
+        l.fogColor = sky;
+        l.fogDistance = fog;
+        l.water = 0;
+        seglerGl.draw(gl, v, l);
+        flaggenGl.upload(gl);
+        com.dan.cloth.gl.ClothGl.View cv = new com.dan.cloth.gl.ClothGl.View();
+        cv.viewProj = vp;
+        cv.eye = camera.eye.clone();
+        cv.tonemap = false;
+        cv.exposure = 1;
+        com.dan.cloth.gl.ClothGl.Light cl = new com.dan.cloth.gl.ClothGl.Light();
+        cl.sunDir = sunDir;
+        cl.sunColor = sunC;
+        cl.skyColor = sky;
+        cl.groundColor = new double[]{sky[0] * 0.3, sky[1] * 0.28, sky[2] * 0.22};
+        cl.fogColor = sky;
+        cl.fogDistance = fog;
+        flaggenGl.draw(gl, cv, cl);
+        gl.glBindVertexArray(emptyVao);
+        seglerInfo = String.format(Locale.GERMAN, "%d Boote und %d Stangen: %,d Dreiecke · %d Flaggen: %,d Dreiecke", segler.boote.size(), segler.stangen.size(),
+                seglerGl.triangles(), segler.flaggen.size(), flaggenGl.triangles());
     }
 
     /** Lichtpunkte in die Wolken: die der Blitze (höchstens drei) und der Glutkern (F50 A), vorbelichtet. */
@@ -1316,6 +1401,7 @@ public final class Renderer implements GLEventListener {
                 klang.describe(),
                 (feuerOk ? "" : "!") + feuer.describe(),
                 bauwerke.describe(),
+                showSegler ? segler.zeile() + " · " + seglerInfo : "Segler und Flaggen aus",
                 Gelaende.describe(),
                 cameraLine(),
                 String.format(Locale.GERMAN, "%s · %d×%d · %s", quality.label, hdrW, hdrH, reversedZ ? "umgekehrte Tiefe" : "klassische Tiefe"),
@@ -1386,6 +1472,7 @@ public final class Renderer implements GLEventListener {
         if (regenOk) regenGl.dispose(gl);
         klang.dispose();
         bautenGl.dispose(gl);
+        if (seglerOk) { seglerGl.dispose(gl); flaggenGl.dispose(gl); }
         gelaendeGl.dispose(gl);
         belichtung.dispose(gl);
         Gpu.deleteFbos(gl, hdrFbo, hdrColorFbo);

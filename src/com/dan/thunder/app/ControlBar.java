@@ -44,6 +44,9 @@ public class ControlBar extends JPanel {
         boolean soundChanged(boolean on);
 
         void softChanged(boolean on);
+
+        /** Rückfluss aus Timmendorf (Phase 18): Segelboote und Flaggen. */
+        default void seglerChanged(boolean on) { }
     }
 
     private static final int SEG_W = 122;
@@ -52,6 +55,7 @@ public class ControlBar extends JPanel {
     private final FToggleButton rainToggle = new FToggleButton(true);
     private final FToggleButton soundToggle = new FToggleButton(false);
     private final FToggleButton softToggle = new FToggleButton(false);
+    private final FToggleButton seglerToggle = new FToggleButton(true);
     private final FComboBox themeBox = new FComboBox(FThemePreset.values());
     private final List<JLabel> captions = new ArrayList<>();
     private final FTheme.ThemeListener themeListener = t -> applyTheme();
@@ -101,6 +105,10 @@ public class ControlBar extends JPanel {
         softToggle.setTooltipOn("Blitze gedämpft, ohne Flackern");
         softToggle.setTooltipOff("Blitze mit voller Helligkeit und Flackern");
         left.add(toggle("Sanfte Blitze", softToggle, actions::softChanged));
+        left.add(Box.createHorizontalStrut(6));
+        seglerToggle.setTooltipOn("Segelboote (sail) und Flaggen (cloth) aus Timmendorf");
+        seglerToggle.setTooltipOff("ohne Segelboote und Flaggen");
+        left.add(toggle("Segler", seglerToggle, actions::seglerChanged));
         left.add(Box.createHorizontalGlue());
         for (Component c : left.getComponents()) {
             if (c instanceof JComponent jc) {

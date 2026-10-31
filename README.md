@@ -73,6 +73,16 @@ Bedienung bleiben; das Schema bleibt DEMO.
 
 ![Stand 18b](docs/status/Status_Phase18b_claude.png)
 
+## Rückfluss aus Timmendorf (Phase 18, F29 A)
+
+Aus dem „Projekt des Segels“ kommen Segelboote und Flaggen an den Ostseestrand (`scene.Segler`, Haken „Segler“ in der Bedienleiste):
+
+- **Boote** aus `com.dan.sail`: zwei Fahrtenyachten (34 ft) und ein Gaffelschoner laufen 350 bis 1 100 m vor dem Strand hin und her. Der Südwestwind steht quer zur Küste, beide Kurse sind halber Wind; am Ende des Reviers drehen sie. Fahrt, Krängung und Abdrift rechnet `sail`: rund 7 kn beim Wetterleuchten, 8 bis 9 kn im Unwetter mit gut 20° Krängung. Im Blitz bekommen sie sein Licht.
+- **Flaggen** aus `com.dan.cloth`: am Kopf der Seebrücke die Landesflagge, am Strand vor den Körben die rote Flagge „Baden verboten“ (bei Gewitter gesetzt), beide an 6-m-Stangen, nass im Regen.
+- `ant renderer` holt das neue `Renderer.jar` (mit `sail` und `cloth`), `check-packages` prüft es.
+- `ant vergleichsbild -Dstand=… [-Drueckfluss=aus]` rechnet das Vergleichsblatt nach `docs/rueckfluss/`; mit `aus` bleibt die Szene, wie sie war.
+- Die Prüfung hat dafür den Teil „Segler und Flaggen“ (je Stufe 15 Minuten: Revier, Fahrt, Krängung, Flaggen nach Nordost).
+
 ## Start
 
 1. **Datenbank** (einmalig, als `DEMO`): in SQL Developer `sql/00_th_install.sql` öffnen und mit **F5** als Skript ausführen,

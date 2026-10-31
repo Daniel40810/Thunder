@@ -15,13 +15,15 @@ import java.util.zip.ZipFile;
  * Himmel und Wolken. Aufruf ohne Ant: {@code java tools/JarPruefung.java lib/Renderer.jar}.
  */
 public final class JarPruefung {
-    /** Was Thunder aus Renderer.jar braucht (Phase 18a; lightning, rain, soundscape und beacon ab 18b). */
-    static final String[] GEBRAUCHT = {"sky", "cloud", "ocean", "surf", "lightning", "rain", "soundscape", "beacon"};
+    /** Was Thunder aus Renderer.jar braucht (Phase 18a; lightning, rain, soundscape und beacon ab 18b; sail und cloth seit Timmendorf Phase 18). */
+    static final String[] GEBRAUCHT = {"sky", "cloud", "ocean", "surf", "lightning", "rain", "soundscape", "beacon", "sail", "cloth"};
     static final String[][] SHADER = {
             {"surf", "Surf.class", "WaveTrain.class", "Swash.class", "BreakerMesh.class", "gl/BreakerGl.class", "gl/breaker.vert", "gl/breaker.frag", "demo/SurfCheck.class"},
             {"ocean", "Ocean.class", "gl/OceanGl.class", "gl/surface.frag"},
             {"sky", "gl/SkyGl.class", "milkyway.png", "stars.bin"},
-            {"cloud", "Clouds.class", "gl/CloudGl.class"}};
+            {"cloud", "Clouds.class", "gl/CloudGl.class"},
+            {"sail", "Sail.class", "BoatShape.class", "gl/SailGl.class", "gl/sail.vert", "gl/sail.frag"},
+            {"cloth", "Cloth.class", "gl/ClothGl.class", "gl/cloth.vert", "gl/cloth.frag"}};
 
     public static void main(String[] a) throws Exception {
         File jar = new File(a.length > 0 ? a[0] : "lib/Renderer.jar");

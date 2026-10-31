@@ -129,14 +129,23 @@
             <classpath><pathelement path="${run.classpath}"/></classpath>
         </java>
     </target>
-    <!-- Timmendorf Phase 18 (Rückfluss): festes Vergleichsblatt vorher und nachher; ant vergleichsbild -Dstand=vorher|zwischen|nachher -->
+    <!-- Timmendorf Phase 18: ../Renderer/dist/Renderer.jar nach lib/ kopieren (nach jedem Neubau des Renderers; check-packages prüft es). -->
+    <target name="renderer" description="../Renderer/dist/Renderer.jar nach lib/ kopieren.">
+        <copy file="../Renderer/dist/Renderer.jar" todir="lib" overwrite="true"/>
+        <checksum file="lib/Renderer.jar" property="renderer.md5"/>
+        <echo message="Renderer.jar ${renderer.md5} liegt in lib/."/>
+    </target>
+
+    <!-- Timmendorf Phase 18 (Rückfluss): festes Vergleichsblatt vorher und nachher; ant vergleichsbild -Dstand=vorher|zwischen|nachher [-Drueckfluss=aus: neue Teile aus] -->
     <target name="vergleichsbild" depends="compile" description="Rechnet docs/rueckfluss/Vergleich_${stand}.png (com.dan.thunder.tools.Statusbild) für den Rückfluss aus Timmendorf.">
         <property name="stand" value="vorher"/>
+        <property name="rueckfluss" value="an"/>
         <property name="platform.java" value="java"/>
         <mkdir dir="docs/rueckfluss"/>
         <java classname="com.dan.thunder.tools.Statusbild" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
             <jvmarg value="-Dstdout.encoding=UTF-8"/>
             <jvmarg value="-Xmx6g"/>
+            <jvmarg value="-Drueckfluss=${rueckfluss}"/>
             <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
             <arg value="docs/rueckfluss/Vergleich_${stand}.png"/>
             <arg value="2000"/>
