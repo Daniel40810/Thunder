@@ -129,4 +129,22 @@
             <classpath><pathelement path="${run.classpath}"/></classpath>
         </java>
     </target>
+    <!-- Timmendorf Phase 18 (Rückfluss): festes Vergleichsblatt vorher und nachher; ant vergleichsbild -Dstand=vorher|zwischen|nachher -->
+    <target name="vergleichsbild" depends="compile" description="Rechnet docs/rueckfluss/Vergleich_${stand}.png (com.dan.thunder.tools.Statusbild) für den Rückfluss aus Timmendorf.">
+        <property name="stand" value="vorher"/>
+        <property name="platform.java" value="java"/>
+        <mkdir dir="docs/rueckfluss"/>
+        <java classname="com.dan.thunder.tools.Statusbild" fork="true" jvm="${platform.java}" dir="${basedir}" failonerror="true">
+            <jvmarg value="-Dstdout.encoding=UTF-8"/>
+            <jvmarg value="-Xmx6g"/>
+            <jvmarg value="--enable-native-access=ALL-UNNAMED"/>
+            <arg value="docs/rueckfluss/Vergleich_${stand}.png"/>
+            <arg value="2000"/>
+            <arg value="HOCH"/>
+            <arg value="Thunder · ${stand}"/>
+            <arg value="ansichten"/>
+            <classpath><pathelement path="${run.classpath}"/></classpath>
+        </java>
+    </target>
+
 </project>
